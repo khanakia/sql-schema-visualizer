@@ -17,6 +17,7 @@ import { toPng } from 'html-to-image'
 import { useStore } from '../store'
 import { layout } from '../lib/layout'
 import { TableNode } from './TableNode'
+import { Toolbar } from './Toolbar'
 
 const nodeTypes = { table: TableNode }
 
@@ -24,8 +25,25 @@ function Flow() {
   const schema = useStore((s) => s.schema)
   const search = useStore((s) => s.search)
   const direction = useStore((s) => s.direction)
+  const collapsed = useStore((s) => s.collapsed)
   const focus = useStore((s) => s.focus)
+  const theme = useStore((s) => s.theme)
   const { fitView, setCenter, getNode } = useReactFlow()
+
+  const pal =
+    theme === 'light'
+      ? {
+          dots: '#d2d6df',
+          exportBg: '#f6f7f9',
+          mmNode: '#c4b5fd',
+          mmMask: 'rgba(255,255,255,0.6)',
+        }
+      : {
+          dots: '#23252f',
+          exportBg: '#0a0b0f',
+          mmNode: '#3b2f5c',
+          mmMask: 'rgba(10,11,15,0.7)',
+        }
 
   const q = search.trim().toLowerCase()
 
@@ -59,19 +77,21 @@ function Flow() {
   }, [schema])
 
   const laidOut = useMemo(
-    () => layout(baseNodes, baseEdges, direction),
-    [baseNodes, baseEdges, direction],
+    () => layout(baseNodes, baseEdges, direction, collapsed),
+    [baseNodes, baseEdges, direction, collapsed],
   )
 
   const [nodes, setNodes, onNodesChange] = useNodesState(laidOut)
   const [edges, setEdges, onEdgesChange] = useEdgesState(baseEdges)
 
-  // re-apply layout when schema / direction changes
+  const relayoutNonce = useStore((s) => s.relayoutNonce)
+
+  // re-apply layout when schema / direction / collapse / reset changes
   useEffect(() => {
     setNodes(laidOut)
     setEdges(baseEdges)
     requestAnimationFrame(() => fitView({ padding: 0.15, duration: 400 }))
-  }, [laidOut, baseEdges, setNodes, setEdges, fitView])
+  }, [laidOut, baseEdges, setNodes, setEdges, fitView, relayoutNonce])
 
   // search highlight + connected-edge emphasis (matches table OR any column)
   useEffect(() => {
@@ -141,7 +161,7 @@ function Flow() {
     ) as HTMLElement | null
     if (!vp) return
     toPng(vp, {
-      backgroundColor: '#0a0b0f',
+      backgroundColor: pal.exportBg,
       width: vp.offsetWidth,
       height: vp.offsetHeight,
       style: { width: `${vp.offsetWidth}px`, height: `${vp.offsetHeight}px` },
@@ -151,7 +171,7 @@ function Flow() {
       a.href = url
       a.click()
     })
-  }, [])
+  }, [pal.exportBg])
 
   return (
     <div ref={wrapRef} className="h-full w-full">
@@ -173,25 +193,18 @@ function Flow() {
         proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{ type: 'smoothstep' }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#23252f" />
+        <Background variant={BackgroundVariant.Dots} gap={22} size={1} color={pal.dots} />
         <Controls showInteractive={false} />
-        <MiniMap
-          pannable
-          zoomable
-          nodeColor="#3b2f5c"
-          maskColor="rgba(10,11,15,0.7)"
-        />
+        <MiniMap pannable zoomable nodeColor={pal.mmNode} maskColor={pal.mmMask} />
       </ReactFlow>
-      <button
-        onClick={onExport}
-        className="absolute right-4 top-4 z-10 rounded-md border border-[#2a2c37] bg-[#1a1b23] px-3 py-1.5 text-xs font-medium text-gray-200 hover:bg-[#25262f]"
-      >
-        Export PNG
-      </button>
-      <div className="pointer-events-none absolute bottom-4 right-4 z-10 rounded-md border border-[#2a2c37] bg-[#14151b]/80 px-2.5 py-1.5 text-[10px] leading-relaxed text-gray-500">
-        scroll <span className="text-gray-300">pan</span> · ⌘/Ctrl+scroll{' '}
-        <span className="text-gray-300">zoom</span> · double-click{' '}
-        <span className="text-gray-300">zoom in</span>
+      <Toolbar
+        onFit={() => fitView({ padding: 0.15, duration: 400 })}
+        onExport={onExport}
+      />
+      <div className="pointer-events-none absolute bottom-4 right-4 z-10 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[10px] leading-relaxed text-[var(--text-soft)]">
+        scroll <span className="text-[var(--text)]">pan</span> · ⌘/Ctrl+scroll{' '}
+        <span className="text-[var(--text)]">zoom</span> · double-click{' '}
+        <span className="text-[var(--text)]">zoom in</span>
       </div>
     </div>
   )

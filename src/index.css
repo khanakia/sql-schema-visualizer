@@ -1,8 +1,39 @@
 @import 'tailwindcss';
 @import '@xyflow/react/dist/style.css';
 
-:root {
+:root,
+:root[data-theme='dark'] {
   color-scheme: dark;
+  --bg: #0a0b0f;
+  --surface: #14151b;
+  --surface-2: #1d1f29;
+  --surface-3: #1a1b23;
+  --border: #2a2c37;
+  --border-soft: #1d1f29;
+  --text: #d1d5db;
+  --text-strong: #f3f4f6;
+  --text-soft: #6b7280;
+  --hover: #25262f;
+  --dots: #23252f;
+  --edge: #4b5563;
+  --accent: #a855f7;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #eef0f4;
+  --surface-3: #ffffff;
+  --border: #d4d8e0;
+  --border-soft: #e7e9ef;
+  --text: #374151;
+  --text-strong: #111827;
+  --text-soft: #8a93a3;
+  --hover: #eceef3;
+  --dots: #d2d6df;
+  --edge: #9aa3b2;
+  --accent: #9333ea;
 }
 
 html,
@@ -13,8 +44,8 @@ body,
   width: 100%;
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
     sans-serif;
-  background: #0a0b0f;
-  color: #e5e7eb;
+  background: var(--bg);
+  color: var(--text);
   overflow: hidden;
 }
 
@@ -22,17 +53,17 @@ body,
   box-sizing: border-box;
 }
 
-/* React Flow dark theming */
+/* React Flow theming (driven by CSS variables) */
 .react-flow__background {
-  background: #0a0b0f;
+  background: var(--bg);
 }
 .react-flow__edge-path {
-  stroke: #4b5563;
+  stroke: var(--edge);
   stroke-width: 1.5;
 }
 .react-flow__edge.selected .react-flow__edge-path,
 .react-flow__edge:hover .react-flow__edge-path {
-  stroke: #a855f7;
+  stroke: var(--accent);
   stroke-width: 2.5;
 }
 .react-flow__handle {
@@ -44,16 +75,16 @@ body,
   z-index: 1000 !important;
 }
 .react-flow__controls-button {
-  background: #1a1b23;
-  border-bottom: 1px solid #2a2c37;
-  color: #e5e7eb;
-  fill: #e5e7eb;
+  background: var(--surface-3);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  fill: var(--text);
 }
 .react-flow__controls-button:hover {
-  background: #25262f;
+  background: var(--hover);
 }
 .react-flow__minimap {
-  background: #14151b;
+  background: var(--surface);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -67,7 +98,7 @@ body,
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #2a2c37;
+  background: var(--border);
   border-radius: 4px;
 }
 *::-webkit-scrollbar-track {

@@ -17,7 +17,7 @@ const ROW = 'h-7 flex items-center gap-2 px-3 text-[12px] leading-none'
 
 function Popover({ text }: { text: string }) {
   return (
-    <div className="pointer-events-none absolute left-full top-0 z-50 ml-2 hidden w-56 rounded-md border border-[#2a2c37] bg-[#1d1f29] px-3 py-2 text-[11px] italic leading-snug text-gray-300 shadow-xl group-hover:block whitespace-normal break-words">
+    <div className="pointer-events-none absolute left-full top-0 z-50 ml-2 hidden w-56 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-[11px] italic leading-snug text-[var(--text)] shadow-xl group-hover:block whitespace-normal break-words">
       {text}
     </div>
   )
@@ -26,39 +26,77 @@ function Popover({ text }: { text: string }) {
 export function TableNode({ data, selected }: NodeProps) {
   const d = data as TableNodeData
   const mode = useStore((s) => s.commentMode)
-  const inline = mode === 'inline'
+  const collapsed = useStore((s) => !!s.collapsed[d.label])
+  const toggleCollapse = useStore((s) => s.toggleCollapse)
+  const inline = mode === 'inline' && !collapsed
   const hover = mode === 'hover'
 
   return (
     <div
-      className={`rounded-lg border bg-[#14151b] shadow-xl transition-opacity ${
+      className={`rounded-lg border bg-[var(--surface)] shadow-xl transition-opacity ${
         d.dim ? 'opacity-25' : 'opacity-100'
       } ${
         selected || d.matched
           ? 'border-purple-500 ring-2 ring-purple-500/40'
-          : 'border-[#2a2c37]'
+          : 'border-[var(--border)]'
       }`}
       style={{ width: 260 }}
     >
-      <div className="group relative flex items-center justify-between rounded-t-lg bg-[#1d1f29] px-3 py-2 border-b border-[#2a2c37]">
-        <span className="font-semibold text-[13px] text-gray-100 truncate">
-          {d.label}
+      <div
+        className={`group relative flex items-center justify-between rounded-t-lg bg-[var(--surface-2)] px-3 py-2 ${
+          collapsed ? 'rounded-b-lg' : 'border-b border-[var(--border)]'
+        }`}
+      >
+        <span className="flex items-center gap-1.5 font-semibold text-[13px] text-[var(--text-strong)] truncate">
+          <button
+            className="nodrag shrink-0 text-[var(--text-soft)] hover:text-[var(--text-strong)]"
+            title={collapsed ? 'Expand fields' : 'Collapse fields'}
+            onClick={(e) => {
+              e.stopPropagation()
+              toggleCollapse(d.label)
+            }}
+          >
+            {collapsed ? '▸' : '▾'}
+          </button>
+          <span className="truncate">{d.label}</span>
           {hover && d.tableComment && (
-            <span className="ml-1.5 text-[9px] text-purple-400">●</span>
+            <span className="text-[9px] text-purple-400">●</span>
           )}
         </span>
-        <span className="text-[10px] text-gray-500 tabular-nums">
+        <span className="text-[10px] text-[var(--text-soft)] tabular-nums">
           {d.columns.length}
         </span>
         {hover && d.tableComment && <Popover text={d.tableComment} />}
       </div>
 
+      {collapsed && (
+        <div className="pointer-events-none absolute inset-x-0 top-1/2 h-0">
+          {d.columns.map((c) => (
+            <span key={c.name}>
+              <Handle
+                type="target"
+                position={Position.Left}
+                id={c.name}
+                style={{ left: -1, top: 0 }}
+              />
+              <Handle
+                type="source"
+                position={Position.Right}
+                id={c.name}
+                style={{ right: -1, top: 0 }}
+              />
+            </span>
+          ))}
+        </div>
+      )}
+
       {inline && d.tableComment && (
-        <div className="border-b border-[#2a2c37] bg-[#16171d] px-3 py-1.5 text-[10px] italic leading-snug text-gray-500 whitespace-normal break-words">
+        <div className="border-b border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-[10px] italic leading-snug text-[var(--text-soft)] whitespace-normal break-words">
           {d.tableComment}
         </div>
       )}
 
+      {!collapsed && (
       <div className="py-1">
         {d.columns.map((c) => {
           const qc = (d.queryCol ?? '').toLowerCase()
@@ -67,7 +105,7 @@ export function TableNode({ data, selected }: NodeProps) {
           return (
             <div
               key={c.name}
-              className="border-b border-[#1d1f29] last:border-0"
+              className="border-b border-[var(--border-soft)] last:border-0"
             >
               <div
                 className={`group ${ROW} relative ${
@@ -103,7 +141,7 @@ export function TableNode({ data, selected }: NodeProps) {
                 </span>
                 <span
                   className={`flex-1 truncate ${
-                    c.pk ? 'font-semibold text-gray-100' : 'text-gray-300'
+                    c.pk ? 'font-semibold text-[var(--text-strong)]' : 'text-[var(--text)]'
                   }`}
                 >
                   {c.name}
@@ -119,13 +157,13 @@ export function TableNode({ data, selected }: NodeProps) {
                     ●
                   </span>
                 )}
-                <span className="shrink-0 text-[10px] uppercase tracking-wide text-gray-500 truncate max-w-[80px]">
+                <span className="shrink-0 text-[10px] uppercase tracking-wide text-[var(--text-soft)] truncate max-w-[80px]">
                   {c.type}
                 </span>
                 {hover && c.comment && <Popover text={c.comment} />}
               </div>
               {inline && c.comment && (
-                <div className="px-3 pb-1 pl-8 text-[10px] italic leading-snug text-gray-500 whitespace-normal break-words">
+                <div className="px-3 pb-1 pl-8 text-[10px] italic leading-snug text-[var(--text-soft)] whitespace-normal break-words">
                   {c.comment}
                 </div>
               )}
@@ -133,6 +171,7 @@ export function TableNode({ data, selected }: NodeProps) {
           )
         })}
       </div>
+      )}
     </div>
   )
 }

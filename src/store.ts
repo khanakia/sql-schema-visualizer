@@ -12,6 +12,16 @@ interface State {
   focus: { table: string; column?: string; nonce: number } | null
   commentMode: 'off' | 'inline' | 'hover'
   toggleComments: () => void
+  sidebarOpen: boolean
+  toggleSidebar: () => void
+  collapsed: Record<string, true>
+  toggleCollapse: (table: string) => void
+  collapseAll: (names: string[]) => void
+  expandAll: () => void
+  relayoutNonce: number
+  resetLayout: () => void
+  theme: 'dark' | 'light'
+  toggleTheme: () => void
   setSql: (sql: string) => void
   loadSample: (id: string) => void
   setSearch: (q: string) => void
@@ -44,6 +54,36 @@ export const useStore = create<State>((set) => ({
             : 'off'
       localStorage.setItem('dbviz.comments', next)
       return { commentMode: next }
+    }),
+  sidebarOpen: true,
+  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  collapsed: {},
+  toggleCollapse: (table) =>
+    set((s) => {
+      const c = { ...s.collapsed }
+      if (c[table]) delete c[table]
+      else c[table] = true
+      return { collapsed: c }
+    }),
+  collapseAll: (names) =>
+    set(() => ({
+      collapsed: Object.fromEntries(names.map((n) => [n, true])),
+    })),
+  expandAll: () => set({ collapsed: {} }),
+  relayoutNonce: 0,
+  resetLayout: () =>
+    set((s) => ({ relayoutNonce: s.relayoutNonce + 1 })),
+  theme: ((): 'dark' | 'light' => {
+    const t = localStorage.getItem('dbviz.theme') === 'light' ? 'light' : 'dark'
+    document.documentElement.dataset.theme = t
+    return t
+  })(),
+  toggleTheme: () =>
+    set((s) => {
+      const t = s.theme === 'dark' ? 'light' : 'dark'
+      localStorage.setItem('dbviz.theme', t)
+      document.documentElement.dataset.theme = t
+      return { theme: t }
     }),
   setSql: (sql) => {
     localStorage.setItem(LS_KEY, sql)

@@ -9,6 +9,7 @@ export function layout(
   nodes: Node[],
   edges: Edge[],
   direction: 'LR' | 'TB' = 'LR',
+  collapsed: Record<string, true> = {},
 ): Node[] {
   const g = new dagre.graphlib.Graph()
   g.setGraph({ rankdir: direction, nodesep: 60, ranksep: 120, marginx: 40, marginy: 40 })
@@ -18,7 +19,9 @@ export function layout(
     const cols = (n.data as { columns?: unknown[] }).columns?.length ?? 1
     g.setNode(n.id, {
       width: NODE_WIDTH,
-      height: HEADER_HEIGHT + cols * ROW_HEIGHT + 8,
+      height: collapsed[n.id]
+        ? HEADER_HEIGHT
+        : HEADER_HEIGHT + cols * ROW_HEIGHT + 8,
     })
   }
   for (const e of edges) g.setEdge(e.source, e.target)
