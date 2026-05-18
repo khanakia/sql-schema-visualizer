@@ -1,0 +1,75 @@
+@import 'tailwindcss';
+@import '@xyflow/react/dist/style.css';
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  width: 100%;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    sans-serif;
+  background: #0a0b0f;
+  color: #e5e7eb;
+  overflow: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* React Flow dark theming */
+.react-flow__background {
+  background: #0a0b0f;
+}
+.react-flow__edge-path {
+  stroke: #4b5563;
+  stroke-width: 1.5;
+}
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: #a855f7;
+  stroke-width: 2.5;
+}
+.react-flow__handle {
+  opacity: 0;
+  border: none;
+}
+/* lift hovered node so comment popovers sit above sibling nodes */
+.react-flow__node:hover {
+  z-index: 1000 !important;
+}
+.react-flow__controls-button {
+  background: #1a1b23;
+  border-bottom: 1px solid #2a2c37;
+  color: #e5e7eb;
+  fill: #e5e7eb;
+}
+.react-flow__controls-button:hover {
+  background: #25262f;
+}
+.react-flow__minimap {
+  background: #14151b;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.react-flow__attribution {
+  display: none;
+}
+
+/* thin scrollbars */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #2a2c37;
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}

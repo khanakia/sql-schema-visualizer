@@ -1,0 +1,27 @@
+version: '3'
+
+tasks:
+  dev:
+    desc: Start the Vite dev server
+    cmds:
+      - npm run dev
+
+  build:
+    desc: Typecheck and build for production
+    cmds:
+      - npm run build
+
+  preview:
+    desc: Serve the production build locally
+    cmds:
+      - npm run preview
+
+  routes:
+    desc: Regenerate the TanStack route tree
+    cmds:
+      - npx tsr generate
+
+  clean:
+    desc: Remove build output and deps
+    cmds:
+      - rm -rf dist node_modules
