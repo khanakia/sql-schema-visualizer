@@ -4,7 +4,13 @@
 
 > Tried every database schema diagram tool and they're all slow, clunky, or paywalled? This one isn't. Paste DDL, see your schema.
 
-![SQL Schema Visualizer — interactive ER diagram of a PostgreSQL e-commerce schema with foreign keys and inline column comments](docs/screenshot.png)
+![SQL Schema Visualizer dark mode — interactive ER diagram of a PostgreSQL e-commerce schema with foreign keys and inline column comments](docs/screenshot-dark.png)
+
+<p align="center"><em>Dark mode — paste DDL, get an interactive ER diagram with FK edges and inline SQL comments.</em></p>
+
+![SQL Schema Visualizer light mode — database schema diagram with sidebar table navigation and toolbar](docs/screenshot-light.png)
+
+<p align="center"><em>Light mode — sidebar table/field search, collapsible tables, and the canvas toolbar.</em></p>
 
 [![Made with React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)](https://react.dev)
 [![Vite](https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white)](https://vite.dev)
