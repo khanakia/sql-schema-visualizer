@@ -4,7 +4,11 @@ import { RouterProvider, createRouter } from '@tanstack/react-router'
 import './index.css'
 import { routeTree } from './routeTree.gen'
 
-const router = createRouter({ routeTree })
+// import.meta.env.BASE_URL = '/sql-schema-visualizer/' on GitHub Pages, '/' in dev
+const router = createRouter({
+  routeTree,
+  basepath: import.meta.env.BASE_URL,
+})
 
 declare module '@tanstack/react-router' {
   interface Register {
