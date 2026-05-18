@@ -1,13 +1,19 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { RouterProvider, createRouter } from '@tanstack/react-router'
+import {
+  RouterProvider,
+  createRouter,
+  createHashHistory,
+} from '@tanstack/react-router'
 import './index.css'
 import { routeTree } from './routeTree.gen'
 
-// import.meta.env.BASE_URL = '/sql-schema-visualizer/' on GitHub Pages, '/' in dev
+// Hash history keeps routing working under any base path (e.g. the
+// /sql-schema-visualizer/ subpath on GitHub Pages) with no server-side
+// rewrite or 404 fallback needed.
 const router = createRouter({
   routeTree,
-  basepath: import.meta.env.BASE_URL,
+  history: createHashHistory(),
 })
 
 declare module '@tanstack/react-router' {
