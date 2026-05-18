@@ -24,6 +24,7 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm test
       # vite build runs the TanStack Router plugin (generates routeTree.gen.ts)
       # then bundles — avoids the tsc ordering issue on a clean checkout.
       - run: npx vite build

@@ -18,8 +18,10 @@ import { useStore } from '../store'
 import { layout } from '../lib/layout'
 import { TableNode } from './TableNode'
 import { Toolbar } from './Toolbar'
+import { SelfLoopEdge } from './SelfLoopEdge'
 
 const nodeTypes = { table: TableNode }
+const edgeTypes = { selfloop: SelfLoopEdge }
 
 function Flow() {
   const schema = useStore((s) => s.schema)
@@ -69,7 +71,7 @@ function Flow() {
         target: fk.toTable,
         sourceHandle: fk.fromColumn,
         targetHandle: fk.toColumn,
-        type: 'smoothstep',
+        type: fk.fromTable === fk.toTable ? 'selfloop' : 'smoothstep',
         animated: false,
         data: { from: fk.fromTable, to: fk.toTable },
       }))
@@ -181,6 +183,7 @@ function Flow() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         minZoom={0.05}
         maxZoom={2.5}
         panOnScroll
