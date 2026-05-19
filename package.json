@@ -27,9 +27,14 @@
     "build:web": "pnpm --filter @khanakia/sql-schema-web build",
     "build": "pnpm run build:libs && pnpm run build:web",
     "typecheck": "pnpm -r typecheck",
-    "preview": "pnpm --filter @khanakia/sql-schema-web preview"
+    "preview": "pnpm --filter @khanakia/sql-schema-web preview",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "pnpm run build:libs && changeset publish"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.7.0",
+    "@changesets/cli": "^2.31.0",
     "vitest": "^4.1.6"
   },
   "packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"

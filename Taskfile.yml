@@ -72,21 +72,21 @@ tasks:
       - task: test
       - task: build
 
-  publish:dispatch:
-    desc: Trigger the npm publish workflow (needs NPM_TOKEN secret set)
+  changeset:
+    desc: Record a change for the next release (interactive)
     cmds:
-      - gh workflow run publish.yml
+      - pnpm changeset
 
-  publish:status:
-    desc: Show the latest npm publish workflow runs
+  release:status:
+    desc: Show the latest Release (changesets) workflow runs
     cmds:
-      - gh run list --workflow=publish.yml --limit 5
+      - gh run list --workflow=release.yml --limit 5
 
   publish:local:
     desc: Manual local publish fallback (requires `npm login` to @khanakia)
     cmds:
       - pnpm run build:libs
-      - pnpm -r publish --no-git-checks --access public
+      - pnpm changeset publish
 
   deploy:status:
     desc: Show the latest GitHub Pages deploy run

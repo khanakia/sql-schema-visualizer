@@ -1,0 +1,45 @@
+name: Release
+
+# Changesets flow (same as vercel/ai):
+#  • PRs add a changeset (`pnpm changeset`)
+#  • on merge to main this opens/updates a "Version Packages" PR
+#  • merging THAT PR bumps versions, writes changelogs, creates per-package
+#    git tags + GitHub Releases (e.g. @khanakia/sql-schema-core@0.2.0),
+#    and publishes to npm with provenance.
+
+on:
+  push:
+    branches: [main]
+
+concurrency: release-${{ github.ref }}
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write # npm provenance
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: 'https://registry.npmjs.org'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @khanakia/sql-schema-core test
+      - uses: changesets/action@v1
+        with:
+          version: pnpm run version-packages
+          publish: pnpm run release
+          commit: 'chore: release packages'
+          title: 'chore: release packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: 'true'

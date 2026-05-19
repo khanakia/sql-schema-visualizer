@@ -1,107 +1,69 @@
 # Publishing
 
-How `@khanakia/sql-schema-core` and `@khanakia/sql-schema-react` get to npm. The web app (`apps/web`) is `private` and never published — it deploys to GitHub Pages separately.
+`@khanakia/sql-schema-core` and `@khanakia/sql-schema-react` are released to npm with **[Changesets](https://github.com/changesets/changesets)** — the same flow [vercel/ai](https://github.com/vercel/ai/tags) uses. The web app (`apps/web`) is `private` / ignored and never published; it deploys to GitHub Pages separately.
 
-## TL;DR
+Tags are **per-package, no leading `v`** — e.g. `@khanakia/sql-schema-core@0.2.0`, `@khanakia/sql-schema-react@0.2.0`.
 
-```
-# bump versions in the two library package.json files, then:
-git commit -am "release: vX.Y.Z"
-git tag vX.Y.Z && git push origin main --tags
-gh release create vX.Y.Z --generate-notes      # → CI auto-publishes to npm
-```
-
----
-
-## One-time setup (done)
-
-1. **npm org membership** — the publishing npm account is a member of the [`khanakia` org](https://www.npmjs.com/settings/khanakia/packages) with publish rights.
-2. **Automation token** — npmjs.com → *Access Tokens* → *Generate New Token*.
-   It **must be an _Automation_ token** — these bypass 2FA so CI can publish
-   non-interactively. A plain *Publish* / read-write token will fail with
-   `npm error code EOTP — This operation requires a one-time password`.
-   - **Classic:** *Classic Token* → type **Automation**.
-   - **Granular:** type **Automation**, enable *"Allow this token to bypass
-     two-factor authentication"*, Read & write on the `@khanakia` scope.
-3. **Repo secret** — added as `NPM_TOKEN`:
-   ```
-   gh secret set NPM_TOKEN --repo khanakia/sql-schema-visualizer
-   ```
-   (paste the token at the prompt — never commit it)
-
-Both libraries already declare `"publishConfig": { "access": "public" }` plus `repository` / `homepage` / `bugs`, so scoped public publish + the npm page work out of the box.
-
-## How auto-publish works
-
-`.github/workflows/publish.yml`:
+## The flow
 
 ```mermaid
 flowchart LR
-  R["GitHub Release published<br/>or manual dispatch"] --> I["pnpm install --frozen-lockfile"]
-  I --> T["pnpm --filter core test"]
-  T --> B["pnpm run build:libs<br/>tsup ESM + d.ts"]
-  B --> P["pnpm -r publish --access public"]
-  P --> N1["npm: @khanakia/sql-schema-core"]
-  P --> N2["npm: @khanakia/sql-schema-react"]
+  PR["PR with a changeset<br/>(pnpm changeset)"] --> M["merge to main"]
+  M --> A["release.yml<br/>changesets/action"]
+  A --> VP["opens/updates<br/>Version Packages PR"]
+  VP --> MV["merge that PR"]
+  MV --> A2["release.yml runs again"]
+  A2 --> T["bump versions + CHANGELOG<br/>tag pkg@x.y.z + GitHub Release"]
+  T --> NP["pnpm changeset publish → npm (provenance)"]
 ```
 
-- Triggers: a **GitHub Release being _published_**, or manual **workflow_dispatch**.
-- `pnpm -r publish` publishes every non-private workspace package; `apps/web` (`private: true`) is skipped automatically.
-- npm **provenance** is on (`id-token: write` + `NPM_CONFIG_PROVENANCE=true`).
-- npm rejects a version that already exists — so every release **must bump versions** first.
-
-## Cutting a release
-
-1. Bump `version` in **both**:
-   - `packages/core/package.json`
-   - `packages/react/package.json`
-   (keep them in lockstep; `@khanakia/sql-schema-react` depends on core via `workspace:*`, which pnpm rewrites to the published version on publish.)
-2. Commit + tag + push:
+1. **Make a change** in a PR. Record it:
    ```
-   git commit -am "release: v0.2.0"
-   git tag v0.2.0
-   git push origin main --tags
+   pnpm changeset        # or: task changeset
    ```
-3. Create the GitHub Release (this is what fires the publish workflow):
-   ```
-   gh release create v0.2.0 --generate-notes
-   ```
-4. Watch it:
-   ```
-   task publish:status        # gh run list --workflow=publish.yml
-   ```
+   Pick the bumped packages and patch/minor/major, write a one-line summary. This adds a `.changeset/*.md` file — commit it with your PR.
+2. **Merge the PR to `main`.** `release.yml` (Changesets action) opens or updates a **"Version Packages"** PR that applies all pending changesets (version bumps + `CHANGELOG.md`).
+3. **Merge the "Version Packages" PR.** The action then:
+   - tags each package `@khanakia/sql-schema-core@x.y.z` etc.,
+   - creates a **GitHub Release** per package,
+   - runs `pnpm run release` → `build:libs` + `changeset publish` → publishes to **npm with provenance**.
 
-## First publish (v0.1.0)
+No manual version edits, no manual tags. `react`'s `workspace:*` dep on `core` is rewritten to the published version automatically.
 
-The `v0.1.0` release was created **before** the publish workflow existed, so it didn't auto-trigger. Publish it once manually:
+## One-time setup (done)
 
-```
-task publish:dispatch         # = gh workflow run publish.yml
-task publish:status
-```
+- **npm Automation token** → repo secret `NPM_TOKEN`. Must be a **Classic Automation** token (Account → Access Tokens → *Classic Token* → **Automation**). Granular / Publish tokens fail in CI with `npm error code EOTP — requires a one-time password`.
+  ```
+  gh secret set NPM_TOKEN --repo khanakia/sql-schema-visualizer
+  ```
+- **Repo setting** (required for the Version Packages PR): Settings → Actions → General → *Workflow permissions* → enable **"Allow GitHub Actions to create and approve pull requests"**.
+- Both libs declare `publishConfig.access: public` + repository/homepage/bugs; `.changeset/config.json` ignores `@khanakia/sql-schema-web`.
 
-After that, the release-driven flow above is fully automatic.
+## Current state
+
+`@khanakia/sql-schema-core@0.1.0` and `@khanakia/sql-schema-react@0.1.0` are already published (initial manual release, with provenance). All subsequent releases go through the Changesets flow above.
 
 ## Manual / local fallback
 
-If CI is unavailable:
+If the action is unavailable:
 
 ```
-npm login                     # to an account in the @khanakia org
-task publish:local            # build:libs + pnpm -r publish --access public
+npm login                       # account in the @khanakia org
+pnpm changeset version          # apply changesets → bump + changelog
+pnpm run release                # build:libs + changeset publish
+git push --follow-tags
 ```
 
-## Verifying
+(`task publish:local` does the build + `changeset publish` part.)
+
+## Verify
 
 ```
 npm view @khanakia/sql-schema-core version
 npm view @khanakia/sql-schema-react version
 ```
-
-or visit <https://www.npmjs.com/settings/khanakia/packages>.
+or <https://www.npmjs.com/settings/khanakia/packages>. New-scope packages can take a few minutes to appear on the read replica even though `npm publish` succeeded — `npm pack <pkg>@<version>` is the authoritative check.
 
 ## Versioning policy
 
-- `core` and `react` are released together at the same version for simplicity.
-- Pre-1.0: minor = features, patch = fixes; breaking changes allowed in minors.
-- Optional future improvement: adopt [Changesets](https://github.com/changesets/changesets) to automate version bumps + changelogs instead of hand-editing the two `package.json` files.
+Independent per-package SemVer (Changesets default). Pre-1.0: minor = features, patch = fixes, breaking allowed in minors. CHANGELOGs are generated from changeset summaries via `@changesets/changelog-github`.
