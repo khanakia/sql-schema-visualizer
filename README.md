@@ -123,7 +123,7 @@ See [CONTEXT.md](CONTEXT.md) for the full technical architecture, parser design,
 
 ## Contributing
 
-Issues and PRs welcome — especially SQL dialect edge cases. See [CONTRIBUTING.md](CONTRIBUTING.md).
+Issues and PRs welcome — especially SQL dialect edge cases. See [CONTRIBUTING.md](CONTRIBUTING.md). Releases are automated with Changesets — see [docs/PUBLISHING.md](docs/PUBLISHING.md).
 
 ## License
 

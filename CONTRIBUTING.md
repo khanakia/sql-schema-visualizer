@@ -45,6 +45,11 @@ If you fix it, add the snippet to `src/lib/samples.ts` or as a regression case s
 - Small, focused commits with clear messages.
 - One logical change per PR; describe the SQL or interaction it affects.
 - Note any new known-limitation in CONTEXT.md if your change introduces a tradeoff.
+- **If your change affects a published package** (`@khanakia/sql-schema-core` / `-react`), add a changeset: `pnpm changeset` (or `task changeset`) and commit it with the PR.
+
+## Releasing
+
+Automated via [Changesets](https://github.com/changesets/changesets) — see [docs/PUBLISHING.md](docs/PUBLISHING.md) for the full flow (changeset → Version Packages PR → per-package tags + GitHub Releases + npm publish).
 
 ## License
 
