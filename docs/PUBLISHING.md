@@ -16,7 +16,13 @@ gh release create vX.Y.Z --generate-notes      # → CI auto-publishes to npm
 ## One-time setup (done)
 
 1. **npm org membership** — the publishing npm account is a member of the [`khanakia` org](https://www.npmjs.com/settings/khanakia/packages) with publish rights.
-2. **Automation token** — npmjs.com → *Access Tokens* → *Generate New Token* → **Granular Access Token**, type **Automation**, **Read and write** on the `@khanakia` scope.
+2. **Automation token** — npmjs.com → *Access Tokens* → *Generate New Token*.
+   It **must be an _Automation_ token** — these bypass 2FA so CI can publish
+   non-interactively. A plain *Publish* / read-write token will fail with
+   `npm error code EOTP — This operation requires a one-time password`.
+   - **Classic:** *Classic Token* → type **Automation**.
+   - **Granular:** type **Automation**, enable *"Allow this token to bypass
+     two-factor authentication"*, Read & write on the `@khanakia` scope.
 3. **Repo secret** — added as `NPM_TOKEN`:
    ```
    gh secret set NPM_TOKEN --repo khanakia/sql-schema-visualizer
