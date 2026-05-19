@@ -99,15 +99,15 @@ tasks:
       - gh run list --workflow=deploy.yml --limit 5
 
   # WHY build:cf (not plain build): the app is served at
-  # khanakia.com/app/sql-schema-visualizer/ via the edge gateway, which
+  # khanakia.com/apps/sql-schema-visualizer/ via the edge gateway, which
   # forwards the path UNCHANGED (no rewriting). So the origin must serve
-  # at exactly /app/sql-schema-visualizer/. Vite `base` makes assets
+  # at exactly /apps/sql-schema-visualizer/. Vite `base` makes assets
   # absolute under that path, and build:cf physically nests the output
-  # under dist-cf/app/sql-schema-visualizer/ so the file layout matches
+  # under dist-cf/apps/sql-schema-visualizer/ so the file layout matches
   # the URL. Plain `build` outputs at the root → blank page through the
   # gateway. See docsi/DEPLOY-CLOUDFLARE.md.
   build:cf:
-    desc: Build the web app + nest output under dist-cf/app/sql-schema-visualizer/ (Cloudflare)
+    desc: Build the web app + nest output under dist-cf/apps/sql-schema-visualizer/ (Cloudflare)
     cmds:
       - pnpm --filter @khanakia/sql-schema-web build:cf
 
@@ -137,7 +137,7 @@ tasks:
     cmds:
       - pnpm --dir ../.. --filter @khanakia/sql-schema-web build:cf
       - npx wrangler deploy
-      - 'echo "Deployed. Verify: curl -sI https://sql-schema-visualizer.aman-f4d.workers.dev/app/sql-schema-visualizer/ | head -1"'
+      - 'echo "Deployed. Verify: curl -sI https://sql-schema-visualizer.aman-f4d.workers.dev/apps/sql-schema-visualizer/ | head -1"'
 
   clean:
     desc: Remove build output and all node_modules

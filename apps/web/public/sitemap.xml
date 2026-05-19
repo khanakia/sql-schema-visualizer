@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Served at https://khanakia.com/apps/sql-schema-visualizer/sitemap.xml
+     (Vite base nests public/ under the app path). Reference this from
+     the apex khanakia.com/robots.txt and/or a root sitemap index, then
+     submit in Google Search Console for the khanakia.com property.
+     robots.txt itself belongs to the apex site — the gateway does not
+     serve khanakia.com/robots.txt. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://khanakia.com/apps/sql-schema-visualizer/</loc>
+    <lastmod>2026-05-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>

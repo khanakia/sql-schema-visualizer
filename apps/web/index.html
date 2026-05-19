@@ -3,8 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0a0b0f" />
+    <meta name="color-scheme" content="light dark" />
 
     <title>SQL Schema Visualizer — free in-browser DB ER diagram tool</title>
     <meta
@@ -15,43 +17,179 @@
       name="keywords"
       content="sql schema visualizer, database schema diagram, ER diagram, ERD, postgresql, mysql, sqlite, ddl, foreign keys, online, free"
     />
+    <meta name="author" content="khanakia" />
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
     <link
       rel="canonical"
-      href="https://khanakia.github.io/sql-schema-visualizer/"
+      href="https://khanakia.com/apps/sql-schema-visualizer/"
     />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="SQL Schema Visualizer — free in-browser DB ER diagram tool" />
+    <meta property="og:site_name" content="khanakia.com" />
+    <meta property="og:locale" content="en_US" />
+    <meta
+      property="og:title"
+      content="SQL Schema Visualizer — free in-browser DB ER diagram tool"
+    />
     <meta
       property="og:description"
       content="Paste your SQL DDL, get a smooth interactive ER diagram. PostgreSQL / MySQL / SQLite. 100% client-side, free & open source."
     />
     <meta
       property="og:url"
-      content="https://khanakia.github.io/sql-schema-visualizer/"
+      content="https://khanakia.com/apps/sql-schema-visualizer/"
     />
     <meta
       property="og:image"
-      content="https://khanakia.github.io/sql-schema-visualizer/og.png"
+      content="https://khanakia.com/apps/sql-schema-visualizer/og.png"
     />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1379" />
     <meta property="og:image:height" content="849" />
+    <meta
+      property="og:image:alt"
+      content="SQL Schema Visualizer interactive ER diagram with tables and foreign keys"
+    />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="SQL Schema Visualizer — free in-browser DB ER diagram tool" />
+    <meta
+      name="twitter:title"
+      content="SQL Schema Visualizer — free in-browser DB ER diagram tool"
+    />
     <meta
       name="twitter:description"
       content="Paste SQL DDL, get an interactive ER diagram. Postgres/MySQL/SQLite. 100% client-side, free & open source."
     />
     <meta
       name="twitter:image"
-      content="https://khanakia.github.io/sql-schema-visualizer/og.png"
+      content="https://khanakia.com/apps/sql-schema-visualizer/og.png"
     />
+    <meta
+      name="twitter:image:alt"
+      content="SQL Schema Visualizer interactive ER diagram"
+    />
+
+    <!-- Structured data: the tool, the org, the breadcrumb. Kept factual
+         — no invented ratings/reviews (faking them risks manual action). -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://khanakia.com/apps/sql-schema-visualizer/#app",
+            "name": "SQL Schema Visualizer",
+            "url": "https://khanakia.com/apps/sql-schema-visualizer/",
+            "description": "Free, fast, in-browser SQL database schema visualizer. Paste PostgreSQL, MySQL, SQLite or ANSI DDL and get an interactive ER diagram with foreign keys and comments. 100% client-side — nothing leaves your browser.",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "Any (web browser)",
+            "browserRequirements": "Requires JavaScript. Modern browser.",
+            "softwareVersion": "1.0",
+            "isAccessibleForFree": true,
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "featureList": [
+              "PostgreSQL / MySQL / SQLite / ANSI DDL parsing",
+              "Interactive ER diagram with foreign-key edges",
+              "Click-to-navigate tables and fields",
+              "SQL comment preservation",
+              "Shareable diagrams via compressed URL",
+              "Light and dark themes",
+              "Fully client-side — no data leaves the browser"
+            ],
+            "author": {
+              "@type": "Person",
+              "name": "khanakia",
+              "url": "https://github.com/khanakia"
+            },
+            "publisher": { "@id": "https://khanakia.com/#org" }
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://khanakia.com/#org",
+            "name": "khanakia",
+            "url": "https://khanakia.com/",
+            "sameAs": ["https://github.com/khanakia"]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://khanakia.com/#website",
+            "url": "https://khanakia.com/",
+            "name": "khanakia.com",
+            "publisher": { "@id": "https://khanakia.com/#org" }
+          },
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "khanakia.com",
+                "item": "https://khanakia.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Apps",
+                "item": "https://khanakia.com/apps/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "SQL Schema Visualizer",
+                "item": "https://khanakia.com/apps/sql-schema-visualizer/"
+              }
+            ]
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Prerendered crawl/no-JS content. React replaces #root on mount,
+         so users see the app; crawlers and no-JS clients still get a
+         real H1, description, and feature list instead of an empty div. -->
+    <div id="root">
+      <main
+        style="max-width:48rem;margin:8vh auto;padding:0 1.5rem;font:16px/1.7 system-ui,-apple-system,sans-serif;color:#1a1a1a"
+      >
+        <h1 style="font-size:2rem;margin:0 0 .5rem">
+          SQL Schema Visualizer
+        </h1>
+        <p style="font-size:1.15rem;color:#444;margin:0 0 1.25rem">
+          Free, fast, in-browser database schema visualizer. Paste
+          PostgreSQL, MySQL, SQLite or ANSI <code>CREATE TABLE</code> DDL
+          and get an interactive ER diagram with foreign keys and
+          comments — entirely client-side, nothing leaves your browser.
+        </p>
+        <h2 style="font-size:1.1rem;margin:1.5rem 0 .5rem">Features</h2>
+        <ul>
+          <li>PostgreSQL / MySQL / SQLite / ANSI DDL parsing</li>
+          <li>Interactive ER diagram with foreign-key edges</li>
+          <li>Click-to-navigate tables and fields, column filter</li>
+          <li>SQL comment preservation (off / inline / hover)</li>
+          <li>Shareable diagrams via compressed URL</li>
+          <li>Light and dark themes, collapsible tables</li>
+          <li>100% client-side — no backend, no signup</li>
+        </ul>
+        <p style="color:#666">Loading the interactive app…</p>
+        <noscript>
+          <p style="color:#b00">
+            This tool needs JavaScript to render the interactive
+            diagram. The parser and rendering run entirely in your
+            browser — no data is ever sent to a server.
+          </p>
+        </noscript>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

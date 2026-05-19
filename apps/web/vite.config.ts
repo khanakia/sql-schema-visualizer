@@ -11,12 +11,12 @@ const r = (p: string) => fileURLToPath(new URL(p, import.meta.url))
 // builds for external consumers.
 export default defineConfig(({ command }) => ({
   // Production assets serve under the canonical gateway path
-  // khanakia.com/app/sql-schema-visualizer/ — the edge gateway forwards
+  // khanakia.com/apps/sql-schema-visualizer/ — the edge gateway forwards
   // the path UNCHANGED (no /app stripping), so the origin must serve at
   // exactly this base. Keep this string == the ROUTES KV key
-  // `app/sql-schema-visualizer`. Routing is hash-based so base only
+  // `apps/sql-schema-visualizer`. Routing is hash-based so base only
   // affects asset URLs, not the router.
-  base: command === 'build' ? '/app/sql-schema-visualizer/' : '/',
+  base: command === 'build' ? '/apps/sql-schema-visualizer/' : '/',
   resolve: {
     alias: {
       '@khanakia/sql-schema-react/styles.css': r('../../packages/react/src/styles.css'),

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "build:cf": "vite build && rm -rf dist-cf && mkdir -p dist-cf/app/sql-schema-visualizer && cp -R dist/. dist-cf/app/sql-schema-visualizer/"
+    "build:cf": "vite build && rm -rf dist-cf && mkdir -p dist-cf/apps/sql-schema-visualizer && cp -R dist/. dist-cf/apps/sql-schema-visualizer/"
   },
   "dependencies": {
     "@khanakia/sql-schema-core": "workspace:*",
