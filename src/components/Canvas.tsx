@@ -32,7 +32,8 @@ function Flow() {
   const focus = useStore((s) => s.focus)
   const theme = useStore((s) => s.theme)
   const commentMode = useStore((s) => s.commentMode)
-  const { fitView, setCenter, getNode, getNodes } = useReactFlow()
+  const { fitView, setCenter, getNode, getNodes, getViewport, setViewport } =
+    useReactFlow()
   const nodesInitialized = useNodesInitialized()
 
   const pal =
@@ -98,28 +99,32 @@ function Flow() {
 
   const relayoutNonce = useStore((s) => s.relayoutNonce)
 
-  // re-apply layout when schema / direction / collapse / reset changes
+  // estimate paint; the measured pass below owns fit-view
   useEffect(() => {
     setNodes(laidOut)
     setEdges(baseEdges)
-    requestAnimationFrame(() => fitView({ padding: 0.15, duration: 400 }))
-  }, [laidOut, baseEdges, setNodes, setEdges, fitView, relayoutNonce])
+  }, [laidOut, baseEdges, setNodes, setEdges, relayoutNonce])
 
   // Measured re-layout: once nodes have rendered, re-run dagre using their
   // REAL heights (estimates ignore wrapped comment lines), so nodes never
   // overlap regardless of comment mode / text wrapping. Keyed by a signature
   // so it runs once per layout-affecting change, not on every render.
   const lastSig = useRef('')
+  const lastFitSig = useRef('')
   useEffect(() => {
     if (!nodesInitialized) return
-    const sig = JSON.stringify([
+    // everything that changes layout EXCEPT a manual Reset
+    const fitSig = JSON.stringify([
       schema.tables.map((t) => t.name),
       direction,
       Object.keys(collapsed).sort(),
       commentMode,
-      relayoutNonce,
     ])
+    const sig = JSON.stringify([fitSig, relayoutNonce])
     if (sig === lastSig.current) return
+    // Reset (only relayoutNonce changed) repositions nodes but must NOT
+    // move the viewport — the user stays where they are.
+    const shouldFit = fitSig !== lastFitSig.current
     const measure = () => {
       const cur = getNodes()
       const sizes = new Map(
@@ -137,12 +142,17 @@ function Flow() {
         return
       }
       lastSig.current = sig
+      lastFitSig.current = fitSig
+      const vp = getViewport()
       setNodes(
         layout(cur, baseEdges, direction, collapsed, false, sizes),
       )
-      requestAnimationFrame(() =>
-        fitView({ padding: 0.15, duration: 300 }),
-      )
+      requestAnimationFrame(() => {
+        if (shouldFit) fitView({ padding: 0.15, duration: 300 })
+        // Reset (no fit): pin the camera exactly where the user left it,
+        // overriding any internal viewport change from replacing nodes.
+        else setViewport(vp)
+      })
     }
     requestAnimationFrame(measure)
   }, [
@@ -156,6 +166,8 @@ function Flow() {
     getNodes,
     setNodes,
     fitView,
+    getViewport,
+    setViewport,
   ])
 
   // search highlight + connected-edge emphasis (matches table OR any column)
