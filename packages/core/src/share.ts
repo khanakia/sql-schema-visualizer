@@ -20,8 +20,9 @@ function b64UrlToBytes(s: string): Uint8Array {
 }
 
 async function pipe(data: Uint8Array, stream: GenericTransformStream) {
+  const blob = new Blob([data as BlobPart])
   const buf = await new Response(
-    new Blob([data]).stream().pipeThrough(stream),
+    blob.stream().pipeThrough(stream),
   ).arrayBuffer()
   return new Uint8Array(buf)
 }

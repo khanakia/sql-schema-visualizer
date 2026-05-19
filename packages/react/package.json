@@ -1,0 +1,43 @@
+{
+  "name": "@sqlviz/react",
+  "version": "0.1.0",
+  "description": "Composable React components for SQL database schema visualization (ER diagram).",
+  "license": "MIT",
+  "author": "khanakia",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "files": ["dist"],
+  "sideEffects": ["*.css"],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean --external react --external react-dom --external @xyflow/react --external @sqlviz/core && cp src/styles.css dist/styles.css",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sqlviz/core": "workspace:*",
+    "html-to-image": "^1.11.13",
+    "zustand": "^5.0.13"
+  },
+  "peerDependencies": {
+    "@xyflow/react": ">=12",
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@xyflow/react": "^12.10.2",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "tsup": "^8.3.5",
+    "typescript": "~6.0.2"
+  }
+}

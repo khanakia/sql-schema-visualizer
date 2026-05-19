@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore, buildShareUrl, SHARE_URL_SOFT_LIMIT } from '../store'
-import { samples } from '../lib/samples'
+import { samples } from '@sqlviz/core'
 
 interface Props {
   onFit: () => void

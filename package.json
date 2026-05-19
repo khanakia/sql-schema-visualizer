@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Fast, smooth, free in-browser SQL database schema visualizer. Paste DDL for PostgreSQL, MySQL, SQLite or ANSI SQL and get an interactive ER diagram — no backend, no signup.",
+  "description": "Fast, smooth, free in-browser SQL database schema visualizer. Monorepo: @sqlviz/core (parser/layout/share), @sqlviz/react (components), and the GitHub Pages app.",
   "keywords": [
     "sql",
     "database",
@@ -21,37 +21,15 @@
   "author": "khanakia",
   "homepage": "https://github.com/khanakia/sql-schema-visualizer",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "test": "vitest run",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@dagrejs/dagre": "^3.0.0",
-    "@tanstack/react-router": "^1.170.4",
-    "@xyflow/react": "^12.10.2",
-    "html-to-image": "^1.11.13",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "zustand": "^5.0.13"
+    "dev": "pnpm --filter @sqlviz/web dev",
+    "test": "pnpm --filter @sqlviz/core test",
+    "build:libs": "pnpm --filter @sqlviz/core build && pnpm --filter @sqlviz/react build",
+    "build:web": "pnpm --filter @sqlviz/web build",
+    "build": "pnpm run build:libs && pnpm run build:web",
+    "typecheck": "pnpm -r typecheck",
+    "preview": "pnpm --filter @sqlviz/web preview"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@tailwindcss/vite": "^4.3.0",
-    "@tanstack/router-plugin": "^1.168.6",
-    "@types/node": "^24.12.3",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
-    "eslint": "^10.3.0",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.6.0",
-    "tailwindcss": "^4.3.0",
-    "typescript": "~6.0.2",
-    "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.12",
     "vitest": "^4.1.6"
   }
 }

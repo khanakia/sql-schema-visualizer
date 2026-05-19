@@ -1,18 +1,20 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Sidebar } from '../components/Sidebar'
-import { Canvas } from '../components/Canvas'
-import { useStore } from '../store'
+import {
+  SchemaSidebar,
+  SchemaCanvas,
+  useSchemaStore,
+} from '@sqlviz/react'
 
 export const Route = createFileRoute('/')({
   component: Home,
 })
 
 function Home() {
-  const sidebarOpen = useStore((s) => s.sidebarOpen)
-  const toggleSidebar = useStore((s) => s.toggleSidebar)
+  const sidebarOpen = useSchemaStore((s) => s.sidebarOpen)
+  const toggleSidebar = useSchemaStore((s) => s.toggleSidebar)
   return (
     <div className="flex h-screen w-screen overflow-hidden">
-      {sidebarOpen && <Sidebar />}
+      {sidebarOpen && <SchemaSidebar />}
       <main className="relative flex-1">
         {!sidebarOpen && (
           <button
@@ -23,7 +25,7 @@ function Home() {
             ☰ Panel
           </button>
         )}
-        <Canvas />
+        <SchemaCanvas />
       </main>
     </div>
   )

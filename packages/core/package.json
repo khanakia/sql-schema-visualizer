@@ -1,0 +1,32 @@
+{
+  "name": "@sqlviz/core",
+  "version": "0.1.0",
+  "description": "Framework-agnostic SQL DDL parser, ER layout and URL share codec for sql-schema-visualizer.",
+  "license": "MIT",
+  "author": "khanakia",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dagrejs/dagre": "^3.0.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.5",
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.6"
+  }
+}

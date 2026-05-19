@@ -1,5 +1,5 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
-import type { Column } from '../lib/parser'
+import type { Column } from '@sqlviz/core'
 import { useStore } from '../store'
 
 export interface TableNodeData {

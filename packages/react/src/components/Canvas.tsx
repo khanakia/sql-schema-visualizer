@@ -16,7 +16,7 @@ import {
 } from '@xyflow/react'
 import { toPng } from 'html-to-image'
 import { useStore } from '../store'
-import { layout } from '../lib/layout'
+import { layoutGraph, type LayoutOptions } from '@sqlviz/core'
 import { TableNode } from './TableNode'
 import { Toolbar } from './Toolbar'
 import { SelfLoopEdge } from './SelfLoopEdge'
@@ -24,7 +24,24 @@ import { SelfLoopEdge } from './SelfLoopEdge'
 const nodeTypes = { table: TableNode }
 const edgeTypes = { selfloop: SelfLoopEdge }
 
-function Flow() {
+/** Adapt React Flow nodes to the framework-agnostic core layout. */
+function applyLayout(
+  rfNodes: Node[],
+  edges: Edge[],
+  opts: LayoutOptions,
+): Node[] {
+  const pos = layoutGraph(
+    rfNodes.map((n) => ({
+      id: n.id,
+      columns: (n.data as { columns?: unknown[] }).columns?.length ?? 1,
+    })),
+    edges,
+    opts,
+  )
+  return rfNodes.map((n) => ({ ...n, position: pos.get(n.id) ?? n.position }))
+}
+
+function Flow({ showToolbar = true }: { showToolbar?: boolean }) {
   const schema = useStore((s) => s.schema)
   const search = useStore((s) => s.search)
   const direction = useStore((s) => s.direction)
@@ -84,13 +101,11 @@ function Flow() {
 
   const laidOut = useMemo(
     () =>
-      layout(
-        baseNodes,
-        baseEdges,
+      applyLayout(baseNodes, baseEdges, {
         direction,
         collapsed,
-        commentMode === 'inline',
-      ),
+        commentsInline: commentMode === 'inline',
+      }),
     [baseNodes, baseEdges, direction, collapsed, commentMode],
   )
 
@@ -145,7 +160,7 @@ function Flow() {
       lastFitSig.current = fitSig
       const vp = getViewport()
       setNodes(
-        layout(cur, baseEdges, direction, collapsed, false, sizes),
+        applyLayout(cur, baseEdges, { direction, collapsed, sizes }),
       )
       requestAnimationFrame(() => {
         if (shouldFit) fitView({ padding: 0.15, duration: 300 })
@@ -275,10 +290,12 @@ function Flow() {
         <Controls showInteractive={false} />
         <MiniMap pannable zoomable nodeColor={pal.mmNode} maskColor={pal.mmMask} />
       </ReactFlow>
-      <Toolbar
-        onFit={() => fitView({ padding: 0.15, duration: 400 })}
-        onExport={onExport}
-      />
+      {showToolbar && (
+        <Toolbar
+          onFit={() => fitView({ padding: 0.15, duration: 400 })}
+          onExport={onExport}
+        />
+      )}
       <div className="pointer-events-none absolute bottom-4 right-4 z-10 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[10px] leading-relaxed text-[var(--text-soft)]">
         scroll <span className="text-[var(--text)]">pan</span> · ⌘/Ctrl+scroll{' '}
         <span className="text-[var(--text)]">zoom</span> · double-click{' '}
@@ -288,10 +305,15 @@ function Flow() {
   )
 }
 
-export function Canvas() {
+export interface SchemaCanvasProps {
+  /** render the built-in floating toolbar (default true) */
+  showToolbar?: boolean
+}
+
+export function Canvas({ showToolbar = true }: SchemaCanvasProps = {}) {
   return (
     <ReactFlowProvider>
-      <Flow />
+      <Flow showToolbar={showToolbar} />
     </ReactFlowProvider>
   )
 }

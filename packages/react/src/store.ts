@@ -1,10 +1,10 @@
 import { create } from 'zustand'
-import { parseSchema, type Schema } from './lib/parser'
-import { samples } from './lib/samples'
-import { encodeSql, decodeSql } from './lib/share'
-import { pendingShareToken } from './lib/shareBoot'
+import { parseSchema, encodeSql, samples, type Schema } from '@sqlviz/core'
+import { storage } from './storage'
 
-const LS_KEY = 'dbviz.sql'
+const K_SQL = 'dbviz.sql'
+const K_COMMENTS = 'dbviz.comments'
+const K_THEME = 'dbviz.theme'
 
 // Browsers handle huge fragments fine, but a link this long gets mangled
 // when pasted into chat apps / link unfurlers, so Share warns past this.
@@ -15,6 +15,21 @@ export async function buildShareUrl(sql: string): Promise<string> {
   const token = await encodeSql(sql)
   const { origin, pathname } = window.location
   return `${origin}${pathname}#s=${token}`
+}
+
+function readCommentMode(): 'off' | 'inline' | 'hover' {
+  const v = storage.getItem(K_COMMENTS)
+  if (v === 'off' || v === '0') return 'off'
+  if (v === 'hover') return 'hover'
+  return 'inline'
+}
+
+function readTheme(): 'dark' | 'light' {
+  return storage.getItem(K_THEME) === 'light' ? 'light' : 'dark'
+}
+
+function applyThemeAttr(t: 'dark' | 'light') {
+  if (typeof document !== 'undefined') document.documentElement.dataset.theme = t
 }
 
 interface State {
@@ -40,11 +55,13 @@ interface State {
   setSearch: (q: string) => void
   setDirection: (d: 'LR' | 'TB') => void
   focusTable: (table: string, column?: string) => void
+  /** Re-read persisted state from the (possibly just-swapped) adapter. */
+  hydrate: () => void
 }
 
-// A shared ?s= URL wins over localStorage so links open the shared schema.
-const initialSql =
-  localStorage.getItem(LS_KEY) ?? samples[0].sql
+const initialSql = storage.getItem(K_SQL) ?? samples[0].sql
+const initialTheme = readTheme()
+applyThemeAttr(initialTheme)
 
 export const useStore = create<State>((set) => ({
   sql: initialSql,
@@ -52,12 +69,7 @@ export const useStore = create<State>((set) => ({
   search: '',
   direction: 'LR',
   focus: null,
-  commentMode: ((): 'off' | 'inline' | 'hover' => {
-    const v = localStorage.getItem('dbviz.comments')
-    if (v === 'off' || v === '0') return 'off'
-    if (v === 'hover') return 'hover'
-    return 'inline'
-  })(),
+  commentMode: readCommentMode(),
   toggleComments: () =>
     set((s) => {
       const next =
@@ -66,7 +78,7 @@ export const useStore = create<State>((set) => ({
           : s.commentMode === 'inline'
             ? 'hover'
             : 'off'
-      localStorage.setItem('dbviz.comments', next)
+      storage.setItem(K_COMMENTS, next)
       return { commentMode: next }
     }),
   sidebarOpen: true,
@@ -85,28 +97,23 @@ export const useStore = create<State>((set) => ({
     })),
   expandAll: () => set({ collapsed: {} }),
   relayoutNonce: 0,
-  resetLayout: () =>
-    set((s) => ({ relayoutNonce: s.relayoutNonce + 1 })),
-  theme: ((): 'dark' | 'light' => {
-    const t = localStorage.getItem('dbviz.theme') === 'light' ? 'light' : 'dark'
-    document.documentElement.dataset.theme = t
-    return t
-  })(),
+  resetLayout: () => set((s) => ({ relayoutNonce: s.relayoutNonce + 1 })),
+  theme: initialTheme,
   toggleTheme: () =>
     set((s) => {
       const t = s.theme === 'dark' ? 'light' : 'dark'
-      localStorage.setItem('dbviz.theme', t)
-      document.documentElement.dataset.theme = t
+      storage.setItem(K_THEME, t)
+      applyThemeAttr(t)
       return { theme: t }
     }),
   setSql: (sql) => {
-    localStorage.setItem(LS_KEY, sql)
+    storage.setItem(K_SQL, sql)
     set({ sql, schema: parseSchema(sql) })
   },
   loadSample: (id) => {
     const s = samples.find((x) => x.id === id)
     if (!s) return
-    localStorage.setItem(LS_KEY, s.sql)
+    storage.setItem(K_SQL, s.sql)
     set({ sql: s.sql, schema: parseSchema(s.sql) })
   },
   setSearch: (search) => set({ search }),
@@ -115,12 +122,15 @@ export const useStore = create<State>((set) => ({
     set((s) => ({
       focus: { table, column, nonce: (s.focus?.nonce ?? 0) + 1 },
     })),
+  hydrate: () =>
+    set(() => {
+      const th = readTheme()
+      applyThemeAttr(th)
+      const sql = storage.getItem(K_SQL)
+      return {
+        commentMode: readCommentMode(),
+        theme: th,
+        ...(sql ? { sql, schema: parseSchema(sql) } : {}),
+      }
+    }),
 }))
-
-// Hydrate from a shared link (decode is async; the captured token was
-// already stripped from the URL synchronously above).
-if (pendingShareToken) {
-  decodeSql(pendingShareToken).then((sql) => {
-    if (sql) useStore.getState().setSql(sql)
-  })
-}

@@ -24,4 +24,8 @@ dist-ssr
 *.sw?
 
 # generated route tree
-src/routeTree.gen.ts
+**/routeTree.gen.ts
+
+# built packages
+packages/*/dist
+apps/*/dist

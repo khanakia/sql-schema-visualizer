@@ -1,27 +1,42 @@
 version: '3'
 
+# pnpm workspace monorepo:
+#   packages/core   @sqlviz/core   (parser, layout, share — pure TS)
+#   packages/react  @sqlviz/react  (composable components)
+#   apps/web        the GitHub Pages app (bundles @sqlviz/* from source)
+
 tasks:
   dev:
-    desc: Start the Vite dev server
+    desc: Start the web app dev server
     cmds:
-      - npm run dev
+      - pnpm --filter @sqlviz/web dev
 
   build:
-    desc: Typecheck and build for production
+    desc: Build the libraries then the web app
     cmds:
-      - npm run build
+      - pnpm run build
+
+  build:libs:
+    desc: Build @sqlviz/core and @sqlviz/react (tsup ESM + d.ts)
+    cmds:
+      - pnpm run build:libs
+
+  test:
+    desc: Run unit tests (@sqlviz/core)
+    cmds:
+      - pnpm test
+
+  typecheck:
+    desc: Typecheck every package
+    cmds:
+      - pnpm -r typecheck
 
   preview:
-    desc: Serve the production build locally
+    desc: Serve the production web build locally
     cmds:
-      - npm run preview
-
-  routes:
-    desc: Regenerate the TanStack route tree
-    cmds:
-      - npx tsr generate
+      - pnpm --filter @sqlviz/web preview
 
   clean:
-    desc: Remove build output and deps
+    desc: Remove build output and node_modules
     cmds:
-      - rm -rf dist node_modules
+      - rm -rf packages/*/dist apps/*/dist node_modules packages/*/node_modules apps/*/node_modules
