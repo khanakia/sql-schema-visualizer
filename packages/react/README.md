@@ -93,18 +93,77 @@ flowchart TD
 
 ## Public API
 
+Three levels — use whichever fits:
+
 | Export | What |
 |---|---|
 | `<SchemaVisualizer>` | one-line full app (provider + sidebar + canvas + toolbar) |
 | `<SchemaProvider>` | context wrapper — drive `sql` / `theme` / `storage` from props |
-| `<SchemaCanvas showToolbar?>` | the React Flow diagram (pan/zoom/drag, minimap, measured layout) |
-| `<SchemaSidebar>` | search, table list, SQL import, samples |
-| `<SchemaToolbar>` | layout dir, collapse-all, comments, reset, fit, PNG, theme, share |
+| `<SchemaCanvas>` | the React Flow diagram — fully prop-configurable (see below) |
+| `<SchemaSidebar>` | bundled panel; props `width` / `className` / `showHeader` |
+| `<SchemaToolbar>` | bundled floating toolbar (`onFit`, `onExport`, `className`) |
 | `<TableNode>` / `<SelfLoopEdge>` | renderers for custom React Flow setups |
+| **Toolbar primitives** | `ToolbarButton` `ToolbarDivider` `SamplesMenu` `LayoutDirectionButton` `CollapseAllButton` `CommentModeButton` `ResetLayoutButton` `ThemeButton` `ShareButton` `FitButton` `ExportButton` |
+| **Sidebar primitives** | `SchemaSearch` `SchemaWarnings` `TableList` `SqlImport` `CollapseSidebarButton` |
 | `useSchemaStore` | full zustand store (sql, schema, search, focus, collapsed, theme, …) |
 | `buildShareUrl`, `SHARE_URL_SOFT_LIMIT` | compressed share-link helpers |
 | `setStorageAdapter`, `StorageAdapter` | pluggable persistence |
 | re-exported core | `parseSchema`, `layoutGraph`, `encodeSql`, `decodeSql`, `samples`, types |
+
+Every visible part is store-driven and layout-headless — drop primitives anywhere.
+
+### `<SchemaCanvas>` props
+
+| Prop | Type | Default | |
+|---|---|---|---|
+| `showToolbar` | `boolean` | `true` | bundled floating toolbar |
+| `showMinimap` | `boolean` | `true` | minimap |
+| `showControls` | `boolean` | `true` | zoom controls |
+| `showBackground` | `boolean` | `true` | dotted background |
+| `showHint` | `boolean` | `true` | pan/zoom hint chip |
+| `minZoom` / `maxZoom` | `number` | `0.05` / `2.5` | zoom bounds |
+| `fitViewPadding` | `number` | `0.15` | fit-view padding |
+| `panOnScroll` | `boolean` | `true` | scroll pans (Figma-style) |
+| `zoomOnScroll` | `boolean` | `false` | scroll zooms instead |
+| `zoomOnDoubleClick` | `boolean` | `true` | |
+| `panOnDrag` | `boolean` | `true` | |
+| `onTableClick` | `(table: string) => void` | – | fires on node click |
+| `className` / `style` | – | – | wrapper styling |
+| `reactFlowProps` | `object` | – | **escape hatch** — spread onto the underlying `<ReactFlow>`, overrides any default |
+
+### Build your own toolbar / sidebar
+
+```tsx
+import {
+  SchemaProvider, SchemaCanvas,
+  // toolbar primitives
+  ToolbarButton, ToolbarDivider, SamplesMenu, LayoutDirectionButton,
+  CommentModeButton, ResetLayoutButton, ThemeButton, ShareButton,
+  // sidebar primitives
+  SchemaSearch, TableList, SqlImport,
+} from '@khanakia/sql-schema-react'
+
+<SchemaProvider sql={mySql}>
+  <aside style={{ width: 280 }}>
+    <SchemaSearch placeholder="Find a table…" />
+    <TableList />
+    <SqlImport />
+  </aside>
+
+  <SchemaCanvas showToolbar={false} onTableClick={(t) => log(t)} />
+
+  <div className="my-toolbar">
+    <SamplesMenu />
+    <ToolbarDivider />
+    <LayoutDirectionButton />
+    <CommentModeButton />
+    <ResetLayoutButton />
+    <ShareButton />
+    <ThemeButton />
+    <ToolbarButton onClick={save}>💾 Save</ToolbarButton>
+  </div>
+</SchemaProvider>
+```
 
 ## Pluggable storage
 
