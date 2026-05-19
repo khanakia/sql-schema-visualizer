@@ -1,5 +1,10 @@
 version: '3'
 
+# Loads CLOUDFLARE_API_TOKEN (and anything else) from a local .env that
+# is gitignored. Copy .env.example -> .env and fill the token. Missing
+# file is fine for tasks that don't need it.
+dotenv: ['.env']
+
 # SQL Schema Visualizer — pnpm workspace monorepo
 #   packages/core   @khanakia/sql-schema-core   parser, layout, share codec (pure TS)
 #   packages/react  @khanakia/sql-schema-react  composable React components
@@ -92,6 +97,47 @@ tasks:
     desc: Show the latest GitHub Pages deploy run
     cmds:
       - gh run list --workflow=deploy.yml --limit 5
+
+  # WHY build:cf (not plain build): the app is served at
+  # khanakia.com/app/sql-schema-visualizer/ via the edge gateway, which
+  # forwards the path UNCHANGED (no rewriting). So the origin must serve
+  # at exactly /app/sql-schema-visualizer/. Vite `base` makes assets
+  # absolute under that path, and build:cf physically nests the output
+  # under dist-cf/app/sql-schema-visualizer/ so the file layout matches
+  # the URL. Plain `build` outputs at the root → blank page through the
+  # gateway. See docsi/DEPLOY-CLOUDFLARE.md.
+  build:cf:
+    desc: Build the web app + nest output under dist-cf/app/sql-schema-visualizer/ (Cloudflare)
+    cmds:
+      - pnpm --filter @khanakia/sql-schema-web build:cf
+
+  # WHY this task exists: turns the multi-step manual deploy (cd, export
+  # token, build:cf, wrangler deploy from the right dir) into one
+  # `task deploy:cf`. Each piece:
+  #   - dotenv loads CLOUDFLARE_API_TOKEN from .env (gitignored) so the
+  #     token never lives in shell history or the Taskfile. The token is
+  #     account-scoped (aman@khanakia.com) so it deploys to the correct
+  #     Cloudflare account regardless of browser login — that's why we
+  #     use a token, not `wrangler login` (which grabs whatever account
+  #     the browser is on; this repo's owner has two).
+  #   - precondition: fail fast with a clear message instead of letting
+  #     wrangler emit a confusing auth error when the token is missing.
+  #   - build:cf MUST run before deploy (wrangler uploads dist-cf/); run
+  #     it from repo root via --dir ../.. because pnpm workspace filters
+  #     resolve from the workspace root, but `dir: apps/web` is required
+  #     for `wrangler deploy` since wrangler.jsonc lives there.
+  #   - final echo: the verify curl, so a green deploy is actually
+  #     confirmed reachable, not just uploaded.
+  deploy:cf:
+    desc: Build + deploy the app to Cloudflare Workers Static Assets (token from .env)
+    dir: apps/web
+    preconditions:
+      - sh: '[ -n "$CLOUDFLARE_API_TOKEN" ]'
+        msg: "CLOUDFLARE_API_TOKEN not set. Copy .env.example -> .env and add the aman@khanakia.com 'Edit Cloudflare Workers' token."
+    cmds:
+      - pnpm --dir ../.. --filter @khanakia/sql-schema-web build:cf
+      - npx wrangler deploy
+      - 'echo "Deployed. Verify: curl -sI https://sql-schema-visualizer.aman-f4d.workers.dev/app/sql-schema-visualizer/ | head -1"'
 
   clean:
     desc: Remove build output and all node_modules

@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# secrets — real token lives here, never committed (.env.example is the template)
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
