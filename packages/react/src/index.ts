@@ -15,6 +15,15 @@ export type { SchemaProviderProps } from './SchemaProvider'
 export { Canvas as SchemaCanvas } from './components/Canvas'
 export type { SchemaCanvasProps } from './components/Canvas'
 export { Sidebar as SchemaSidebar } from './components/Sidebar'
+export type { SchemaSidebarProps } from './components/Sidebar'
+// atomic sidebar primitives — build your own panel
+export {
+  SchemaSearch,
+  SchemaWarnings,
+  TableList,
+  SqlImport,
+  CollapseSidebarButton,
+} from './components/sidebar-parts'
 export { Toolbar as SchemaToolbar } from './components/Toolbar'
 export type { SchemaToolbarProps } from './components/Toolbar'
 export { TableNode } from './components/TableNode'
