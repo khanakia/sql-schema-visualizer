@@ -1,0 +1,14 @@
+{
+  // Cloudflare Workers Static Assets — serves the prebuilt SPA. No Worker
+  // script; assets-only. Output is nested under /sql-schema-visualizer/
+  // (build:cf does the nesting) so it matches the Vite `base` and the
+  // khanakia.com/sql-schema-visualizer edge-gateway path. Deploy with:
+  //   cd apps/web && npx wrangler deploy
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sql-schema-visualizer",
+  "compatibility_date": "2026-05-19",
+  "assets": {
+    "directory": "./dist-cf",
+    "not_found_handling": "single-page-application"
+  }
+}

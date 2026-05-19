@@ -29,3 +29,4 @@ dist-ssr
 # built packages
 packages/*/dist
 apps/*/dist
+apps/*/dist-cf
