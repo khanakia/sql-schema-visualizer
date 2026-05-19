@@ -56,17 +56,17 @@ const back  = await decodeSql(token)      // original SQL (or null)
 
 ```mermaid
 flowchart LR
-  A[SQL DDL text] --> B[stripComments\nquote-aware]
-  B --> C[splitStatements\nparen/quote depth]
-  C --> D{statement?}
-  D -->|CREATE TABLE| E[columns + PK/FK/UNIQUE/DEFAULT]
-  D -->|ALTER ADD FK| F[foreign keys]
-  E --> G[associateComments\nre-attach -- / # comments]
+  A["SQL DDL text"] --> B["stripComments<br/>quote-aware"]
+  B --> C["splitStatements<br/>paren/quote depth"]
+  C --> D{"statement?"}
+  D -->|CREATE TABLE| E["columns + PK/FK/UNIQUE/DEFAULT"]
+  D -->|ALTER ADD FK| F["foreign keys"]
+  E --> G["associateComments<br/>re-attach comments"]
   F --> G
-  G --> H[Schema\n tables · foreignKeys · warnings]
-  H --> I[layoutGraph\ndagre]
-  I --> J[Map id → x,y]
-  A -. encodeSql .-> K[deflate-raw + base64url token]
+  G --> H["Schema: tables · foreignKeys · warnings"]
+  H --> I["layoutGraph · dagre"]
+  I --> J["Map id → x,y"]
+  A -. encodeSql .-> K["deflate-raw + base64url token"]
   K -. decodeSql .-> A
 ```
 

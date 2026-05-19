@@ -23,13 +23,13 @@ The app **bundles `@khanakia/sql-schema-core` and `@khanakia/sql-schema-react` f
 
 ```mermaid
 flowchart LR
-  U[User] -->|opens /sql-schema-visualizer/| GP[GitHub Pages\nstatic files]
-  GP --> H[index.html\nbase=/sql-schema-visualizer/]
-  H --> JS[app bundle]
-  JS --> SB[shareBoot: strip #s= token\nBEFORE router]
-  SB --> R[TanStack hash router\n#/ route]
-  R --> RV[@khanakia/sql-schema-react SchemaVisualizer]
-  JS -. "#s=<deflate token>" .-> DEC[decodeSql] --> STORE[(store.setSql)]
+  U["User"] -->|"opens /sql-schema-visualizer/"| GP["GitHub Pages<br/>static files"]
+  GP --> H["index.html<br/>base /sql-schema-visualizer/"]
+  H --> JS["app bundle"]
+  JS --> SB["shareBoot: strip #s= token<br/>BEFORE router"]
+  SB --> R["TanStack hash router<br/>#/ route"]
+  R --> RV["SchemaVisualizer<br/>@khanakia/sql-schema-react"]
+  JS -. "#s= deflate token" .-> DEC["decodeSql"] --> STORE["store.setSql"]
 ```
 
 Key app-only decisions:
@@ -44,12 +44,12 @@ Key app-only decisions:
 
 ```mermaid
 flowchart LR
-  P[push main] --> I[pnpm install --frozen-lockfile]
-  I --> T[pnpm --filter @khanakia/sql-schema-core test]
-  T --> B[pnpm --filter @khanakia/sql-schema-web build]
-  B --> F[cp index.html → 404.html]
-  F --> UP[upload-pages-artifact apps/web/dist]
-  UP --> D[deploy-pages → GitHub Pages]
+  P["push main"] --> I["pnpm install --frozen-lockfile"]
+  I --> T["pnpm --filter core test"]
+  T --> B["pnpm --filter web build"]
+  B --> F["cp index.html → 404.html"]
+  F --> UP["upload-pages-artifact apps/web/dist"]
+  UP --> D["deploy-pages → GitHub Pages"]
 ```
 
 Tests gate the deploy: a failing `@khanakia/sql-schema-core` test blocks release.

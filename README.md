@@ -57,23 +57,23 @@ This is a **pnpm monorepo**. The visualizer is reusable, not just an app:
 ```mermaid
 flowchart LR
   subgraph core["@khanakia/sql-schema-core — pure TS"]
-    PR[parseSchema] --> SC[Schema model]
-    LG[layoutGraph · dagre]
-    CD[encodeSql / decodeSql]
+    PR["parseSchema"] --> SC["Schema model"]
+    LG["layoutGraph · dagre"]
+    CD["encodeSql / decodeSql"]
   end
   subgraph react["@khanakia/sql-schema-react — composable UI"]
-    STORE[(zustand store\n+ StorageAdapter)]
-    UI[SchemaVisualizer / Provider\nCanvas · Sidebar · Toolbar]
+    STORE["zustand store<br/>+ StorageAdapter"]
+    UI["SchemaVisualizer / Provider<br/>Canvas · Sidebar · Toolbar"]
   end
   subgraph app["apps/web"]
-    RT[TanStack hash router]
-    SH[share link #s= handling]
+    RT["TanStack hash router"]
+    SH["share link #s= handling"]
   end
   SC --> STORE --> UI
   LG --> UI
   CD --> UI
   UI --> RT --> SH
-  SH -.deploy.-> GP[GitHub Pages]
+  SH -. deploy .-> GP["GitHub Pages"]
 ```
 
 Embed it in your own React app:

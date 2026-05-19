@@ -37,12 +37,12 @@ Both libraries already declare `"publishConfig": { "access": "public" }` plus `r
 
 ```mermaid
 flowchart LR
-  R[GitHub Release published\nor manual dispatch] --> I[pnpm install --frozen-lockfile]
-  I --> T[pnpm --filter core test]
-  T --> B[pnpm run build:libs\n(tsup ESM + d.ts)]
-  B --> P[pnpm -r publish --access public]
-  P --> N1[(npm: @khanakia/sql-schema-core)]
-  P --> N2[(npm: @khanakia/sql-schema-react)]
+  R["GitHub Release published<br/>or manual dispatch"] --> I["pnpm install --frozen-lockfile"]
+  I --> T["pnpm --filter core test"]
+  T --> B["pnpm run build:libs<br/>tsup ESM + d.ts"]
+  B --> P["pnpm -r publish --access public"]
+  P --> N1["npm: @khanakia/sql-schema-core"]
+  P --> N2["npm: @khanakia/sql-schema-react"]
 ```
 
 - Triggers: a **GitHub Release being _published_**, or manual **workflow_dispatch**.

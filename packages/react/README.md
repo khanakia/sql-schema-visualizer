@@ -69,18 +69,18 @@ function MyDiagram() {
 
 ```mermaid
 flowchart TD
-  subgraph core["@khanakia/sql-schema-core (pure TS)"]
-    P[parseSchema] --> S[Schema]
-    LG[layoutGraph]
-    EC[encodeSql / decodeSql]
+  subgraph core["@khanakia/sql-schema-core — pure TS"]
+    P["parseSchema"] --> S["Schema"]
+    LG["layoutGraph"]
+    EC["encodeSql / decodeSql"]
   end
   subgraph react["@khanakia/sql-schema-react"]
-    ST[(zustand store\n+ StorageAdapter)]
-    PR[SchemaProvider]
-    CV[SchemaCanvas\nReact Flow]
-    SB[SchemaSidebar]
-    TB[SchemaToolbar]
-    TN[TableNode] & SE[SelfLoopEdge]
+    ST["zustand store<br/>+ StorageAdapter"]
+    PR["SchemaProvider"]
+    CV["SchemaCanvas · React Flow"]
+    SB["SchemaSidebar"]
+    TB["SchemaToolbar"]
+    TN["TableNode"] & SE["SelfLoopEdge"]
   end
   S --> ST
   PR --> ST
@@ -88,7 +88,7 @@ flowchart TD
   ST --> SB
   ST --> TB --> EC
   CV --> TN & SE
-  H[useSchemaStore hook] --> ST
+  H["useSchemaStore hook"] --> ST
 ```
 
 ## Public API
