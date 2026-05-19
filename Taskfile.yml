@@ -1,42 +1,83 @@
 version: '3'
 
-# pnpm workspace monorepo:
-#   packages/core   @sqlviz/core   (parser, layout, share — pure TS)
-#   packages/react  @sqlviz/react  (composable components)
-#   apps/web        the GitHub Pages app (bundles @sqlviz/* from source)
+# SQL Schema Visualizer — pnpm workspace monorepo
+#   packages/core   @khanakia/sql-schema-core   parser, layout, share codec (pure TS)
+#   packages/react  @khanakia/sql-schema-react  composable React components
+#   apps/web        the GitHub Pages app (bundles @khanakia/sql-schema-* from source)
+#
+# Run `task` (or `task --list`) to see everything.
 
 tasks:
-  dev:
-    desc: Start the web app dev server
+  default:
+    desc: List all tasks
     cmds:
-      - pnpm --filter @sqlviz/web dev
+      - task --list
+    silent: true
+
+  setup:
+    desc: Install all workspace dependencies (pnpm)
+    cmds:
+      - pnpm install
+
+  dev:
+    desc: Run the web app dev server (HMR across packages)
+    cmds:
+      - pnpm --filter @khanakia/sql-schema-web dev
 
   build:
-    desc: Build the libraries then the web app
+    desc: Build libraries then the web app
     cmds:
       - pnpm run build
 
   build:libs:
-    desc: Build @sqlviz/core and @sqlviz/react (tsup ESM + d.ts)
+    desc: Build @khanakia/sql-schema-core + @khanakia/sql-schema-react (tsup → ESM + d.ts)
     cmds:
       - pnpm run build:libs
 
+  build:web:
+    desc: Build only the web app
+    cmds:
+      - pnpm --filter @khanakia/sql-schema-web build
+
+  preview:
+    desc: Serve the production web build locally
+    cmds:
+      - pnpm --filter @khanakia/sql-schema-web preview
+
   test:
-    desc: Run unit tests (@sqlviz/core)
+    desc: Run unit tests (@khanakia/sql-schema-core, Vitest)
     cmds:
       - pnpm test
+
+  test:watch:
+    desc: Unit tests in watch mode
+    cmds:
+      - pnpm --filter @khanakia/sql-schema-core exec vitest
 
   typecheck:
     desc: Typecheck every package
     cmds:
       - pnpm -r typecheck
 
-  preview:
-    desc: Serve the production web build locally
+  routes:
+    desc: Regenerate the TanStack route tree for the app
+    dir: apps/web
     cmds:
-      - pnpm --filter @sqlviz/web preview
+      - pnpm exec tsr generate
+
+  check:
+    desc: Full pre-push gate — typecheck + test + build
+    cmds:
+      - task: typecheck
+      - task: test
+      - task: build
+
+  deploy:status:
+    desc: Show the latest GitHub Pages deploy run
+    cmds:
+      - gh run list --workflow=deploy.yml --limit 5
 
   clean:
-    desc: Remove build output and node_modules
+    desc: Remove build output and all node_modules
     cmds:
       - rm -rf packages/*/dist apps/*/dist node_modules packages/*/node_modules apps/*/node_modules

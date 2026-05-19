@@ -1,4 +1,4 @@
-// @sqlviz/core — framework-agnostic SQL schema parsing, layout & share codec.
+// @khanakia/sql-schema-core — framework-agnostic SQL schema parsing, layout & share codec.
 // Zero runtime deps except dagre. Works in Node, browsers and workers.
 
 export {

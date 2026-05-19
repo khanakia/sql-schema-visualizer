@@ -27,10 +27,10 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @sqlviz/core test
-      # app bundles @sqlviz/* from source; vite build also generates the
+      - run: pnpm --filter @khanakia/sql-schema-core test
+      # app bundles @khanakia/sql-schema-* from source; vite build also generates the
       # TanStack route tree (gitignored).
-      - run: pnpm --filter @sqlviz/web build
+      - run: pnpm --filter @khanakia/sql-schema-web build
       # SPA fallback so client-side routes resolve on refresh.
       - run: cp apps/web/dist/index.html apps/web/dist/404.html
       - uses: actions/upload-pages-artifact@v3

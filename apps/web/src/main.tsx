@@ -5,8 +5,8 @@ import {
   createRouter,
   createHashHistory,
 } from '@tanstack/react-router'
-import '@sqlviz/react/styles.css'
-import { useSchemaStore, decodeSql } from '@sqlviz/react'
+import '@khanakia/sql-schema-react/styles.css'
+import { useSchemaStore, decodeSql } from '@khanakia/sql-schema-react'
 // Eager — strips a #s=<token> share link from the URL synchronously BEFORE
 // the router is created, so the hash router never mounts on the token and
 // flashes "Not Found".

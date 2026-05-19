@@ -1,5 +1,5 @@
 {
-  "name": "@sqlviz/core",
+  "name": "@khanakia/sql-schema-core",
   "version": "0.1.0",
   "description": "Framework-agnostic SQL DDL parser, ER layout and URL share codec for sql-schema-visualizer.",
   "license": "MIT",
@@ -14,7 +14,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "sideEffects": false,
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean",
@@ -28,5 +30,17 @@
     "tsup": "^8.3.5",
     "typescript": "~6.0.2",
     "vitest": "^4.1.6"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/khanakia/sql-schema-visualizer.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/khanakia/sql-schema-visualizer#readme",
+  "bugs": {
+    "url": "https://github.com/khanakia/sql-schema-visualizer/issues"
   }
 }

@@ -50,18 +50,18 @@ This is a **pnpm monorepo**. The visualizer is reusable, not just an app:
 
 | Package | Description | Docs |
 |---|---|---|
-| [`@sqlviz/core`](packages/core) | Framework-agnostic SQL parser, dagre layout, share codec. Pure TS, only dep = dagre. Runs in Node/edge/workers. | [README](packages/core/README.md) |
-| [`@sqlviz/react`](packages/react) | Composable React components — `<SchemaVisualizer>`, `<SchemaProvider>`, canvas/sidebar/toolbar, hooks, pluggable storage. | [README](packages/react/README.md) |
-| [`apps/web`](apps/web) | The deployed GitHub Pages app (thin consumer of `@sqlviz/react`). | [README](apps/web/README.md) |
+| [`@khanakia/sql-schema-core`](packages/core) | Framework-agnostic SQL parser, dagre layout, share codec. Pure TS, only dep = dagre. Runs in Node/edge/workers. | [README](packages/core/README.md) |
+| [`@khanakia/sql-schema-react`](packages/react) | Composable React components — `<SchemaVisualizer>`, `<SchemaProvider>`, canvas/sidebar/toolbar, hooks, pluggable storage. | [README](packages/react/README.md) |
+| [`apps/web`](apps/web) | The deployed GitHub Pages app (thin consumer of `@khanakia/sql-schema-react`). | [README](apps/web/README.md) |
 
 ```mermaid
 flowchart LR
-  subgraph core["@sqlviz/core — pure TS"]
+  subgraph core["@khanakia/sql-schema-core — pure TS"]
     PR[parseSchema] --> SC[Schema model]
     LG[layoutGraph · dagre]
     CD[encodeSql / decodeSql]
   end
-  subgraph react["@sqlviz/react — composable UI"]
+  subgraph react["@khanakia/sql-schema-react — composable UI"]
     STORE[(zustand store\n+ StorageAdapter)]
     UI[SchemaVisualizer / Provider\nCanvas · Sidebar · Toolbar]
   end
@@ -79,8 +79,8 @@ flowchart LR
 Embed it in your own React app:
 
 ```tsx
-import { SchemaVisualizer } from '@sqlviz/react'
-import '@sqlviz/react/styles.css'
+import { SchemaVisualizer } from '@khanakia/sql-schema-react'
+import '@khanakia/sql-schema-react/styles.css'
 
 <SchemaVisualizer sql="CREATE TABLE users ( id int PRIMARY KEY );" />
 ```
@@ -97,9 +97,9 @@ pnpm dev            # web app dev server (bundles packages from source, HMR)
 Switch to the **Paste / Import SQL** tab, paste your `CREATE TABLE` statements (or upload a `.sql` file) and the diagram renders instantly.
 
 ```bash
-pnpm build          # build @sqlviz/core + @sqlviz/react + the web app
-pnpm test           # @sqlviz/core unit tests (Vitest)
-pnpm --filter @sqlviz/web preview
+pnpm build          # build @khanakia/sql-schema-core + @khanakia/sql-schema-react + the web app
+pnpm test           # @khanakia/sql-schema-core unit tests (Vitest)
+pnpm --filter @khanakia/sql-schema-web preview
 ```
 
 If you have [Task](https://taskfile.dev) installed: `task dev` / `task build` / `task test` / `task typecheck`.

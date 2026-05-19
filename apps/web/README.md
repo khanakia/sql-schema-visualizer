@@ -1,6 +1,6 @@
-# @sqlviz/web — the SQL Schema Visualizer app
+# @khanakia/sql-schema-web — the SQL Schema Visualizer app
 
-The deployed single-page app behind **[khanakia.github.io/sql-schema-visualizer](https://khanakia.github.io/sql-schema-visualizer/)**. A thin consumer of [`@sqlviz/react`](../react) — it owns only the router, the share-link URL handling, and the GitHub Pages deploy.
+The deployed single-page app behind **[khanakia.github.io/sql-schema-visualizer](https://khanakia.github.io/sql-schema-visualizer/)**. A thin consumer of [`@khanakia/sql-schema-react`](../react) — it owns only the router, the share-link URL handling, and the GitHub Pages deploy.
 
 > Free, fast, 100% client-side database schema visualizer. Paste PostgreSQL / MySQL / SQLite / ANSI DDL → interactive ER diagram. No backend, no signup, nothing leaves the browser.
 
@@ -12,12 +12,12 @@ From the **repo root** (pnpm workspace):
 
 ```bash
 pnpm install
-pnpm dev          # → @sqlviz/web dev server
+pnpm dev          # → @khanakia/sql-schema-web dev server
 pnpm build        # build libs + app
 pnpm preview      # serve the production build
 ```
 
-The app **bundles `@sqlviz/core` and `@sqlviz/react` from source** (Vite alias), so Tailwind scans the component classes and HMR works across packages — no library rebuild needed during development.
+The app **bundles `@khanakia/sql-schema-core` and `@khanakia/sql-schema-react` from source** (Vite alias), so Tailwind scans the component classes and HMR works across packages — no library rebuild needed during development.
 
 ## How requests flow
 
@@ -28,7 +28,7 @@ flowchart LR
   H --> JS[app bundle]
   JS --> SB[shareBoot: strip #s= token\nBEFORE router]
   SB --> R[TanStack hash router\n#/ route]
-  R --> RV[@sqlviz/react SchemaVisualizer]
+  R --> RV[@khanakia/sql-schema-react SchemaVisualizer]
   JS -. "#s=<deflate token>" .-> DEC[decodeSql] --> STORE[(store.setSql)]
 ```
 
@@ -45,14 +45,14 @@ Key app-only decisions:
 ```mermaid
 flowchart LR
   P[push main] --> I[pnpm install --frozen-lockfile]
-  I --> T[pnpm --filter @sqlviz/core test]
-  T --> B[pnpm --filter @sqlviz/web build]
+  I --> T[pnpm --filter @khanakia/sql-schema-core test]
+  T --> B[pnpm --filter @khanakia/sql-schema-web build]
   B --> F[cp index.html → 404.html]
   F --> UP[upload-pages-artifact apps/web/dist]
   UP --> D[deploy-pages → GitHub Pages]
 ```
 
-Tests gate the deploy: a failing `@sqlviz/core` test blocks release.
+Tests gate the deploy: a failing `@khanakia/sql-schema-core` test blocks release.
 
 ## License
 

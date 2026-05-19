@@ -1,6 +1,6 @@
-# @sqlviz/react
+# @khanakia/sql-schema-react
 
-**Composable React components for SQL database schema visualization.** Drop an interactive ER diagram into any React app — paste DDL, get tables, foreign-key edges, search, collapse, comments, theming, PNG export and shareable URLs. Built on [React Flow](https://reactflow.dev) and [`@sqlviz/core`](https://www.npmjs.com/package/@sqlviz/core).
+**Composable React components for SQL database schema visualization.** Drop an interactive ER diagram into any React app — paste DDL, get tables, foreign-key edges, search, collapse, comments, theming, PNG export and shareable URLs. Built on [React Flow](https://reactflow.dev) and [`@khanakia/sql-schema-core`](https://www.npmjs.com/package/@khanakia/sql-schema-core).
 
 [![React](https://img.shields.io/badge/React-18%20%7C%2019-61dafb?logo=react&logoColor=white)](https://react.dev) [![types](https://img.shields.io/badge/types-included-blue)](#) [![ESM](https://img.shields.io/badge/module-ESM-f7df1e)](#)
 
@@ -11,20 +11,20 @@
 ## Install
 
 ```bash
-npm i @sqlviz/react @sqlviz/core @xyflow/react react react-dom
+npm i @khanakia/sql-schema-react @khanakia/sql-schema-core @xyflow/react react react-dom
 ```
 
 `react`, `react-dom` and `@xyflow/react` are **peer dependencies**. Import the stylesheet once:
 
 ```ts
-import '@sqlviz/react/styles.css'
+import '@khanakia/sql-schema-react/styles.css'
 ```
 
 ## One line
 
 ```tsx
-import { SchemaVisualizer } from '@sqlviz/react'
-import '@sqlviz/react/styles.css'
+import { SchemaVisualizer } from '@khanakia/sql-schema-react'
+import '@khanakia/sql-schema-react/styles.css'
 
 export default function App() {
   return (
@@ -45,8 +45,8 @@ Every piece is exported so you control the layout entirely — sidebar, canvas a
 import {
   SchemaProvider, SchemaCanvas, SchemaSidebar, SchemaToolbar,
   useSchemaStore,
-} from '@sqlviz/react'
-import '@sqlviz/react/styles.css'
+} from '@khanakia/sql-schema-react'
+import '@khanakia/sql-schema-react/styles.css'
 
 function MyDiagram() {
   const tableCount = useSchemaStore(s => s.schema.tables.length)
@@ -69,12 +69,12 @@ function MyDiagram() {
 
 ```mermaid
 flowchart TD
-  subgraph core["@sqlviz/core (pure TS)"]
+  subgraph core["@khanakia/sql-schema-core (pure TS)"]
     P[parseSchema] --> S[Schema]
     LG[layoutGraph]
     EC[encodeSql / decodeSql]
   end
-  subgraph react["@sqlviz/react"]
+  subgraph react["@khanakia/sql-schema-react"]
     ST[(zustand store\n+ StorageAdapter)]
     PR[SchemaProvider]
     CV[SchemaCanvas\nReact Flow]
@@ -111,7 +111,7 @@ flowchart TD
 Persistence (last SQL, theme, comment mode) defaults to `localStorage`, **auto-falls back to in-memory** when blocked/SSR. Bring your own backend:
 
 ```tsx
-import { setStorageAdapter } from '@sqlviz/react'
+import { setStorageAdapter } from '@khanakia/sql-schema-react'
 
 setStorageAdapter({
   getItem: (k) => myKV.get(k) ?? null,

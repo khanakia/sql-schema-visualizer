@@ -3,24 +3,46 @@ import {
   SchemaSidebar,
   SchemaCanvas,
   useSchemaStore,
-} from '@sqlviz/react'
+} from '@khanakia/sql-schema-react'
 
 export const Route = createFileRoute('/')({
   component: Home,
 })
 
+// Inline styles so the app shell never depends on Tailwind scanning the
+// app dir — only @khanakia/sql-schema-react owns Tailwind classes.
 function Home() {
   const sidebarOpen = useSchemaStore((s) => s.sidebarOpen)
   const toggleSidebar = useSchemaStore((s) => s.toggleSidebar)
   return (
-    <div className="flex h-screen w-screen overflow-hidden">
+    <div
+      style={{
+        display: 'flex',
+        height: '100vh',
+        width: '100vw',
+        overflow: 'hidden',
+      }}
+    >
       {sidebarOpen && <SchemaSidebar />}
-      <main className="relative flex-1">
+      <main style={{ position: 'relative', flex: 1 }}>
         {!sidebarOpen && (
           <button
             onClick={toggleSidebar}
             title="Show sidebar"
-            className="absolute left-3 top-3 z-20 rounded-md border border-[var(--border)] bg-[var(--surface-3)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-strong)] hover:bg-[var(--hover)]"
+            style={{
+              position: 'absolute',
+              left: 12,
+              top: 12,
+              zIndex: 20,
+              borderRadius: 6,
+              border: '1px solid var(--border)',
+              background: 'var(--surface-3)',
+              color: 'var(--text-strong)',
+              padding: '6px 10px',
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
           >
             ☰ Panel
           </button>

@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Fast, smooth, free in-browser SQL database schema visualizer. Monorepo: @sqlviz/core (parser/layout/share), @sqlviz/react (components), and the GitHub Pages app.",
+  "description": "Fast, smooth, free in-browser SQL database schema visualizer. Monorepo: @khanakia/sql-schema-core (parser/layout/share), @khanakia/sql-schema-react (components), and the GitHub Pages app.",
   "keywords": [
     "sql",
     "database",
@@ -21,15 +21,16 @@
   "author": "khanakia",
   "homepage": "https://github.com/khanakia/sql-schema-visualizer",
   "scripts": {
-    "dev": "pnpm --filter @sqlviz/web dev",
-    "test": "pnpm --filter @sqlviz/core test",
-    "build:libs": "pnpm --filter @sqlviz/core build && pnpm --filter @sqlviz/react build",
-    "build:web": "pnpm --filter @sqlviz/web build",
+    "dev": "pnpm --filter @khanakia/sql-schema-web dev",
+    "test": "pnpm --filter @khanakia/sql-schema-core test",
+    "build:libs": "pnpm --filter @khanakia/sql-schema-core build && pnpm --filter @khanakia/sql-schema-react build",
+    "build:web": "pnpm --filter @khanakia/sql-schema-web build",
     "build": "pnpm run build:libs && pnpm run build:web",
     "typecheck": "pnpm -r typecheck",
-    "preview": "pnpm --filter @sqlviz/web preview"
+    "preview": "pnpm --filter @khanakia/sql-schema-web preview"
   },
   "devDependencies": {
     "vitest": "^4.1.6"
-  }
+  },
+  "packageManager": "pnpm@9.15.4+sha512.b2dc20e2fc72b3e18848459b37359a32064663e5627a51e4c74b2c29dd8e8e0491483c3abb40789cfd578bf362fb6ba8261b05f0387d76792ed6e23ea3b1b6a0"
 }

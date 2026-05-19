@@ -1,6 +1,11 @@
 @import 'tailwindcss';
 @import '@xyflow/react/dist/style.css';
 
+/* Tailwind v4 auto-detects content from the consuming app only; the
+   component utility classes live here in @khanakia/sql-schema-react, so scan this
+   package's source explicitly (paths are relative to this file). */
+@source "./**/*.{ts,tsx}";
+
 :root,
 :root[data-theme='dark'] {
   color-scheme: dark;

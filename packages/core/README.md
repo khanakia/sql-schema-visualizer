@@ -1,4 +1,4 @@
-# @sqlviz/core
+# @khanakia/sql-schema-core
 
 **Framework-agnostic SQL database schema parser, ER-diagram layout engine, and URL share codec.** Zero React. Zero backend. Pure TypeScript that runs in Node, browsers, edge runtimes and web workers — the engine behind [SQL Schema Visualizer](https://khanakia.github.io/sql-schema-visualizer/).
 
@@ -10,13 +10,13 @@
 
 ## Why
 
-Most SQL parsers are single-dialect, strict, and throw on the first vendor clause they don't recognise (`ENGINE=InnoDB`, `AUTOINCREMENT`, backticks). `@sqlviz/core` is **deliberately tolerant**: it skips what it can't understand and still produces a useful diagram, surfacing problems as `warnings[]` instead of exceptions. Perfect for visualizers, docs generators, migration tools, lint rules, and LLM pipelines.
+Most SQL parsers are single-dialect, strict, and throw on the first vendor clause they don't recognise (`ENGINE=InnoDB`, `AUTOINCREMENT`, backticks). `@khanakia/sql-schema-core` is **deliberately tolerant**: it skips what it can't understand and still produces a useful diagram, surfacing problems as `warnings[]` instead of exceptions. Perfect for visualizers, docs generators, migration tools, lint rules, and LLM pipelines.
 
 ## Install
 
 ```bash
-npm i @sqlviz/core
-# or: pnpm add @sqlviz/core
+npm i @khanakia/sql-schema-core
+# or: pnpm add @khanakia/sql-schema-core
 ```
 
 ESM-only, ships its own `.d.ts`. Only runtime dependency: `@dagrejs/dagre`.
@@ -24,7 +24,7 @@ ESM-only, ships its own `.d.ts`. Only runtime dependency: `@dagrejs/dagre`.
 ## Quick start
 
 ```ts
-import { parseSchema, layoutGraph, encodeSql, decodeSql } from '@sqlviz/core'
+import { parseSchema, layoutGraph, encodeSql, decodeSql } from '@khanakia/sql-schema-core'
 
 const sql = `
   CREATE TABLE customers ( id SERIAL PRIMARY KEY, email VARCHAR(255) NOT NULL UNIQUE );

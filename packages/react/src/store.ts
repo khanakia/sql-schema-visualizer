@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { parseSchema, encodeSql, samples, type Schema } from '@sqlviz/core'
+import { parseSchema, encodeSql, samples, type Schema } from '@khanakia/sql-schema-core'
 import { storage } from './storage'
 
 const K_SQL = 'dbviz.sql'

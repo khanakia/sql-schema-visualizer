@@ -14,10 +14,10 @@ importers:
 
   apps/web:
     dependencies:
-      '@sqlviz/core':
+      '@khanakia/sql-schema-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@sqlviz/react':
+      '@khanakia/sql-schema-react':
         specifier: workspace:*
         version: link:../../packages/react
       '@tanstack/react-router':
@@ -76,7 +76,7 @@ importers:
 
   packages/react:
     dependencies:
-      '@sqlviz/core':
+      '@khanakia/sql-schema-core':
         specifier: workspace:*
         version: link:../core
       html-to-image:

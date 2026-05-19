@@ -1,5 +1,5 @@
 {
-  "name": "@sqlviz/react",
+  "name": "@khanakia/sql-schema-react",
   "version": "0.1.0",
   "description": "Composable React components for SQL database schema visualization (ER diagram).",
   "license": "MIT",
@@ -15,14 +15,18 @@
     },
     "./styles.css": "./dist/styles.css"
   },
-  "files": ["dist"],
-  "sideEffects": ["*.css"],
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --clean --external react --external react-dom --external @xyflow/react --external @sqlviz/core && cp src/styles.css dist/styles.css",
+    "build": "tsup src/index.ts --format esm --dts --clean --external react --external react-dom --external @xyflow/react --external @khanakia/sql-schema-core && cp src/styles.css dist/styles.css",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@sqlviz/core": "workspace:*",
+    "@khanakia/sql-schema-core": "workspace:*",
     "html-to-image": "^1.11.13",
     "zustand": "^5.0.13"
   },
@@ -39,5 +43,17 @@
     "react-dom": "^19.2.6",
     "tsup": "^8.3.5",
     "typescript": "~6.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/khanakia/sql-schema-visualizer.git",
+    "directory": "packages/react"
+  },
+  "homepage": "https://github.com/khanakia/sql-schema-visualizer#readme",
+  "bugs": {
+    "url": "https://github.com/khanakia/sql-schema-visualizer/issues"
   }
 }

@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  type CSSProperties,
+} from 'react'
 import {
   Background,
   BackgroundVariant,
@@ -16,7 +22,7 @@ import {
 } from '@xyflow/react'
 import { toPng } from 'html-to-image'
 import { useStore } from '../store'
-import { layoutGraph, type LayoutOptions } from '@sqlviz/core'
+import { layoutGraph, type LayoutOptions } from '@khanakia/sql-schema-core'
 import { TableNode } from './TableNode'
 import { Toolbar } from './Toolbar'
 import { SelfLoopEdge } from './SelfLoopEdge'
@@ -41,7 +47,7 @@ function applyLayout(
   return rfNodes.map((n) => ({ ...n, position: pos.get(n.id) ?? n.position }))
 }
 
-function Flow({ showToolbar = true }: { showToolbar?: boolean }) {
+function Flow(props: SchemaCanvasProps) {
   const schema = useStore((s) => s.schema)
   const search = useStore((s) => s.search)
   const direction = useStore((s) => s.direction)
@@ -265,55 +271,120 @@ function Flow({ showToolbar = true }: { showToolbar?: boolean }) {
     })
   }, [pal.exportBg])
 
+  const {
+    showToolbar = true,
+    showMinimap = true,
+    showControls = true,
+    showBackground = true,
+    showHint = true,
+    minZoom = 0.05,
+    maxZoom = 2.5,
+    fitViewPadding = 0.15,
+    panOnScroll = true,
+    zoomOnScroll = false,
+    zoomOnDoubleClick = true,
+    panOnDrag = true,
+    className,
+    style,
+    onTableClick,
+    reactFlowProps,
+  } = props
+
   return (
-    <div ref={wrapRef} className="h-full w-full">
+    <div
+      ref={wrapRef}
+      className={`h-full w-full${className ? ` ${className}` : ''}`}
+      style={style}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onNodeClick={(_, n) => onTableClick?.(n.id)}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        minZoom={0.05}
-        maxZoom={2.5}
-        panOnScroll
+        minZoom={minZoom}
+        maxZoom={maxZoom}
+        panOnScroll={panOnScroll}
         panOnScrollMode={PanOnScrollMode.Free}
-        zoomOnScroll={false}
+        zoomOnScroll={zoomOnScroll}
         zoomOnPinch
-        zoomOnDoubleClick
-        panOnDrag
+        zoomOnDoubleClick={zoomOnDoubleClick}
+        panOnDrag={panOnDrag}
         zoomActivationKeyCode={['Meta', 'Control']}
         proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{ type: 'smoothstep' }}
+        {...reactFlowProps}
       >
-        <Background variant={BackgroundVariant.Dots} gap={22} size={1} color={pal.dots} />
-        <Controls showInteractive={false} />
-        <MiniMap pannable zoomable nodeColor={pal.mmNode} maskColor={pal.mmMask} />
+        {showBackground && (
+          <Background
+            variant={BackgroundVariant.Dots}
+            gap={22}
+            size={1}
+            color={pal.dots}
+          />
+        )}
+        {showControls && <Controls showInteractive={false} />}
+        {showMinimap && (
+          <MiniMap
+            pannable
+            zoomable
+            nodeColor={pal.mmNode}
+            maskColor={pal.mmMask}
+          />
+        )}
       </ReactFlow>
       {showToolbar && (
         <Toolbar
-          onFit={() => fitView({ padding: 0.15, duration: 400 })}
+          onFit={() => fitView({ padding: fitViewPadding, duration: 400 })}
           onExport={onExport}
         />
       )}
-      <div className="pointer-events-none absolute bottom-4 right-4 z-10 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[10px] leading-relaxed text-[var(--text-soft)]">
-        scroll <span className="text-[var(--text)]">pan</span> · ⌘/Ctrl+scroll{' '}
-        <span className="text-[var(--text)]">zoom</span> · double-click{' '}
-        <span className="text-[var(--text)]">zoom in</span>
-      </div>
+      {showHint && (
+        <div className="pointer-events-none absolute bottom-4 right-4 z-10 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[10px] leading-relaxed text-[var(--text-soft)]">
+          scroll <span className="text-[var(--text)]">pan</span> ·
+          ⌘/Ctrl+scroll <span className="text-[var(--text)]">zoom</span> ·
+          double-click <span className="text-[var(--text)]">zoom in</span>
+        </div>
+      )}
     </div>
   )
 }
 
 export interface SchemaCanvasProps {
-  /** render the built-in floating toolbar (default true) */
+  /** floating toolbar (default true) */
   showToolbar?: boolean
+  /** minimap (default true) */
+  showMinimap?: boolean
+  /** zoom controls (default true) */
+  showControls?: boolean
+  /** dotted background (default true) */
+  showBackground?: boolean
+  /** the pan/zoom hint chip (default true) */
+  showHint?: boolean
+  /** zoom bounds (defaults 0.05 / 2.5) */
+  minZoom?: number
+  maxZoom?: number
+  /** padding used by fit-view (default 0.15) */
+  fitViewPadding?: number
+  /** Figma-style nav — override any of these */
+  panOnScroll?: boolean
+  zoomOnScroll?: boolean
+  zoomOnDoubleClick?: boolean
+  panOnDrag?: boolean
+  className?: string
+  style?: CSSProperties
+  /** fires with the table name when a node is clicked */
+  onTableClick?: (table: string) => void
+  /** escape hatch: props spread onto the underlying <ReactFlow> (wins) */
+  reactFlowProps?: Record<string, unknown>
 }
 
-export function Canvas({ showToolbar = true }: SchemaCanvasProps = {}) {
+export function Canvas(props: SchemaCanvasProps = {}) {
   return (
     <ReactFlowProvider>
-      <Flow showToolbar={showToolbar} />
+      <Flow {...props} />
     </ReactFlowProvider>
   )
 }

@@ -1,6 +1,6 @@
-// @sqlviz/react — composable React components for SQL schema visualization.
+// @khanakia/sql-schema-react — composable React components for SQL schema visualization.
 //
-// Import the stylesheet once in your app:  import '@sqlviz/react/styles.css'
+// Import the stylesheet once in your app:  import '@khanakia/sql-schema-react/styles.css'
 //
 // Pick your level:
 //  • <SchemaVisualizer />  — one-line full app (provider + sidebar + canvas)
@@ -16,9 +16,26 @@ export { Canvas as SchemaCanvas } from './components/Canvas'
 export type { SchemaCanvasProps } from './components/Canvas'
 export { Sidebar as SchemaSidebar } from './components/Sidebar'
 export { Toolbar as SchemaToolbar } from './components/Toolbar'
+export type { SchemaToolbarProps } from './components/Toolbar'
 export { TableNode } from './components/TableNode'
 export type { TableNodeData } from './components/TableNode'
 export { SelfLoopEdge } from './components/SelfLoopEdge'
+
+// atomic toolbar primitives — build your own toolbar
+export {
+  ToolbarButton,
+  ToolbarDivider,
+  SamplesMenu,
+  LayoutDirectionButton,
+  CollapseAllButton,
+  CommentModeButton,
+  ResetLayoutButton,
+  ThemeButton,
+  ShareButton,
+  FitButton,
+  ExportButton,
+} from './components/controls'
+export type { ToolbarButtonProps } from './components/controls'
 
 // store + share helpers
 export { useStore as useSchemaStore, buildShareUrl, SHARE_URL_SOFT_LIMIT } from './store'
@@ -38,4 +55,4 @@ export {
   type Column,
   type ForeignKey,
   type Sample,
-} from '@sqlviz/core'
+} from '@khanakia/sql-schema-core'

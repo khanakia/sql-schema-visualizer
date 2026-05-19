@@ -1,5 +1,5 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
-import type { Column } from '@sqlviz/core'
+import type { Column } from '@khanakia/sql-schema-core'
 import { useStore } from '../store'
 
 export interface TableNodeData {

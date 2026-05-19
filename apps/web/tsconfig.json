@@ -15,10 +15,10 @@
       "vite/client"
     ],
     "paths": {
-      "@sqlviz/core": [
+      "@khanakia/sql-schema-core": [
         "../../packages/core/src/index.ts"
       ],
-      "@sqlviz/react": [
+      "@khanakia/sql-schema-react": [
         "../../packages/react/src/index.ts"
       ]
     },
