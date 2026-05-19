@@ -1,8 +1,41 @@
 import { create } from 'zustand'
 import { parseSchema, type Schema } from './lib/parser'
 import { samples } from './lib/samples'
+import { encodeSql, decodeSql } from './lib/share'
 
 const LS_KEY = 'dbviz.sql'
+const SHARE_PARAM = 's'
+
+/**
+ * Decode a schema embedded in the URL (?s=<lz-compressed>), if present,
+ * then strip the param so later edits persist to localStorage and a reload
+ * doesn't silently revert to the shared snapshot.
+ */
+function sqlFromUrl(): string | null {
+  const params = new URLSearchParams(window.location.search)
+  const sql = decodeSql(params.get(SHARE_PARAM))
+  if (params.has(SHARE_PARAM)) {
+    params.delete(SHARE_PARAM)
+    const qs = params.toString()
+    window.history.replaceState(
+      null,
+      '',
+      window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash,
+    )
+  }
+  return sql
+}
+
+// Beyond this many chars a URL gets unreliable across browsers / chat apps /
+// link unfurlers, so Share warns the user.
+export const SHARE_URL_SOFT_LIMIT = 12000
+
+/** Build a shareable absolute URL with the SQL compressed into ?s=. */
+export function buildShareUrl(sql: string): string {
+  const u = new URL(window.location.href)
+  u.search = `?${SHARE_PARAM}=${encodeSql(sql)}`
+  return u.toString()
+}
 
 interface State {
   sql: string
@@ -29,8 +62,9 @@ interface State {
   focusTable: (table: string, column?: string) => void
 }
 
+// A shared ?s= URL wins over localStorage so links open the shared schema.
 const initialSql =
-  localStorage.getItem(LS_KEY) ?? samples[0].sql
+  sqlFromUrl() ?? localStorage.getItem(LS_KEY) ?? samples[0].sql
 
 export const useStore = create<State>((set) => ({
   sql: initialSql,

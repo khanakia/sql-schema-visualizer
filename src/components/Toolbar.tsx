@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useStore } from '../store'
+import { useStore, buildShareUrl, SHARE_URL_SOFT_LIMIT } from '../store'
 import { samples } from '../lib/samples'
 
 interface Props {
@@ -22,7 +22,30 @@ export function Toolbar({ onFit, onExport }: Props) {
   const resetLayout = useStore((s) => s.resetLayout)
   const theme = useStore((s) => s.theme)
   const toggleTheme = useStore((s) => s.toggleTheme)
+  const sql = useStore((s) => s.sql)
   const tables = useStore((s) => s.schema.tables)
+
+  const [shared, setShared] = useState<'ok' | 'big' | null>(null)
+  const onShare = async () => {
+    const url = buildShareUrl(sql)
+    const tooBig = url.length > SHARE_URL_SOFT_LIMIT
+    if (
+      tooBig &&
+      !window.confirm(
+        `This link is ~${Math.round(url.length / 1000)} KB. It works in a ` +
+          `browser but may get truncated by chat apps or link previews. ` +
+          `Copy anyway?`,
+      )
+    )
+      return
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {
+      window.prompt('Copy this shareable URL:', url)
+    }
+    setShared(tooBig ? 'big' : 'ok')
+    setTimeout(() => setShared(null), 2200)
+  }
 
   const allCollapsed =
     tables.length > 0 && tables.every((t) => collapsed[t.name])
@@ -113,6 +136,17 @@ export function Toolbar({ onFit, onExport }: Props) {
       </button>
       <button className={btn} onClick={onExport} title="Export PNG">
         ⤓ PNG
+      </button>
+      <button
+        className={`${btn} ${shared ? 'text-purple-300' : ''}`}
+        onClick={onShare}
+        title="Copy a shareable link with this schema embedded (compressed)"
+      >
+        {shared === 'ok'
+          ? '✓ Copied'
+          : shared === 'big'
+            ? '✓ Copied (large)'
+            : '🔗 Share'}
       </button>
 
       <Divider />
