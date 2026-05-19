@@ -40,26 +40,69 @@ Most SQL schema visualization tools are either paid, require a live database con
 - **Foreign-key edges** — column-to-column relationship lines with PK / FK / NOT NULL markers.
 - **Import** — paste DDL or upload a `.sql` file. Built-in sample schemas (e-commerce, blog, SaaS).
 - **Export** — one-click PNG of the full diagram.
-- **Dark UI**, keyboard-friendly, state persisted to `localStorage`.
+- **Share** — whole schema compressed into a URL fragment (deflate-raw, ~2.9×); 100% client-side, no server.
+- **Dark / light UI**, keyboard-friendly, **pluggable storage** (localStorage by default).
+- **Use it as a library** — framework-agnostic core + composable React components (see [Packages](#packages)).
 
-## Quick start
+## Packages
+
+This is a **pnpm monorepo**. The visualizer is reusable, not just an app:
+
+| Package | Description | Docs |
+|---|---|---|
+| [`@sqlviz/core`](packages/core) | Framework-agnostic SQL parser, dagre layout, share codec. Pure TS, only dep = dagre. Runs in Node/edge/workers. | [README](packages/core/README.md) |
+| [`@sqlviz/react`](packages/react) | Composable React components — `<SchemaVisualizer>`, `<SchemaProvider>`, canvas/sidebar/toolbar, hooks, pluggable storage. | [README](packages/react/README.md) |
+| [`apps/web`](apps/web) | The deployed GitHub Pages app (thin consumer of `@sqlviz/react`). | [README](apps/web/README.md) |
+
+```mermaid
+flowchart LR
+  subgraph core["@sqlviz/core — pure TS"]
+    PR[parseSchema] --> SC[Schema model]
+    LG[layoutGraph · dagre]
+    CD[encodeSql / decodeSql]
+  end
+  subgraph react["@sqlviz/react — composable UI"]
+    STORE[(zustand store\n+ StorageAdapter)]
+    UI[SchemaVisualizer / Provider\nCanvas · Sidebar · Toolbar]
+  end
+  subgraph app["apps/web"]
+    RT[TanStack hash router]
+    SH[share link #s= handling]
+  end
+  SC --> STORE --> UI
+  LG --> UI
+  CD --> UI
+  UI --> RT --> SH
+  SH -.deploy.-> GP[GitHub Pages]
+```
+
+Embed it in your own React app:
+
+```tsx
+import { SchemaVisualizer } from '@sqlviz/react'
+import '@sqlviz/react/styles.css'
+
+<SchemaVisualizer sql="CREATE TABLE users ( id int PRIMARY KEY );" />
+```
+
+## Quick start (development)
 
 ```bash
 git clone https://github.com/khanakia/sql-schema-visualizer.git
 cd sql-schema-visualizer
-npm install
-npm run dev
+pnpm install
+pnpm dev            # web app dev server (bundles packages from source, HMR)
 ```
 
-Open the printed local URL, switch to the **SQL** tab in the sidebar, paste your `CREATE TABLE` statements (or upload a `.sql` file), and the diagram renders instantly.
-
-Build for production:
+Switch to the **Paste / Import SQL** tab, paste your `CREATE TABLE` statements (or upload a `.sql` file) and the diagram renders instantly.
 
 ```bash
-npm run build && npm run preview
+pnpm build          # build @sqlviz/core + @sqlviz/react + the web app
+pnpm test           # @sqlviz/core unit tests (Vitest)
+pnpm --filter @sqlviz/web preview
 ```
 
-If you have [Task](https://taskfile.dev) installed, `task dev` / `task build` / `task preview` are also wired up.
+If you have [Task](https://taskfile.dev) installed: `task dev` / `task build` / `task test` / `task typecheck`.
 
 ## Supported SQL
 
@@ -74,9 +117,9 @@ The parser is deliberately forgiving: a partially-understood dump still produces
 
 ## Tech stack
 
-React 19 · TypeScript · Vite · TanStack Router · React Flow (`@xyflow/react`) · dagre (auto-layout) · Tailwind CSS · Zustand · html-to-image.
+TypeScript · pnpm workspaces · Vite · React 19 · TanStack Router · React Flow (`@xyflow/react`) · dagre (auto-layout) · Tailwind CSS · Zustand · Vitest · native `CompressionStream` (share codec) · html-to-image.
 
-See [CONTEXT.md](CONTEXT.md) for the full technical architecture, parser design, and known limitations.
+See [CONTEXT.md](CONTEXT.md) for the full technical architecture, parser design, the documented gotchas, and known limitations.
 
 ## Contributing
 
