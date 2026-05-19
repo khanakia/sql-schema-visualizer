@@ -6,6 +6,10 @@ import {
   createHashHistory,
 } from '@tanstack/react-router'
 import './index.css'
+// Eager — strips a #s=<token> share link from the URL synchronously BEFORE
+// the router is created, so the hash router never mounts on the token and
+// flashes "Not Found".
+import './lib/shareBoot'
 import { routeTree } from './routeTree.gen'
 
 // Hash history keeps routing working under any base path (e.g. the

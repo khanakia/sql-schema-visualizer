@@ -32,7 +32,6 @@
     "@tanstack/react-router": "^1.170.4",
     "@xyflow/react": "^12.10.2",
     "html-to-image": "^1.11.13",
-    "lz-string": "^1.5.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "zustand": "^5.0.13"
@@ -41,7 +40,6 @@
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.3.0",
     "@tanstack/router-plugin": "^1.168.6",
-    "@types/lz-string": "^1.3.34",
     "@types/node": "^24.12.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

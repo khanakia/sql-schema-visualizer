@@ -2,39 +2,19 @@ import { create } from 'zustand'
 import { parseSchema, type Schema } from './lib/parser'
 import { samples } from './lib/samples'
 import { encodeSql, decodeSql } from './lib/share'
+import { pendingShareToken } from './lib/shareBoot'
 
 const LS_KEY = 'dbviz.sql'
-const SHARE_PARAM = 's'
 
-/**
- * Decode a schema embedded in the URL (?s=<lz-compressed>), if present,
- * then strip the param so later edits persist to localStorage and a reload
- * doesn't silently revert to the shared snapshot.
- */
-function sqlFromUrl(): string | null {
-  const params = new URLSearchParams(window.location.search)
-  const sql = decodeSql(params.get(SHARE_PARAM))
-  if (params.has(SHARE_PARAM)) {
-    params.delete(SHARE_PARAM)
-    const qs = params.toString()
-    window.history.replaceState(
-      null,
-      '',
-      window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash,
-    )
-  }
-  return sql
-}
+// Browsers handle huge fragments fine, but a link this long gets mangled
+// when pasted into chat apps / link unfurlers, so Share warns past this.
+export const SHARE_URL_SOFT_LIMIT = 16000
 
-// Beyond this many chars a URL gets unreliable across browsers / chat apps /
-// link unfurlers, so Share warns the user.
-export const SHARE_URL_SOFT_LIMIT = 12000
-
-/** Build a shareable absolute URL with the SQL compressed into ?s=. */
-export function buildShareUrl(sql: string): string {
-  const u = new URL(window.location.href)
-  u.search = `?${SHARE_PARAM}=${encodeSql(sql)}`
-  return u.toString()
+/** Build a shareable absolute URL with the SQL compressed into the fragment. */
+export async function buildShareUrl(sql: string): Promise<string> {
+  const token = await encodeSql(sql)
+  const { origin, pathname } = window.location
+  return `${origin}${pathname}#s=${token}`
 }
 
 interface State {
@@ -64,7 +44,7 @@ interface State {
 
 // A shared ?s= URL wins over localStorage so links open the shared schema.
 const initialSql =
-  sqlFromUrl() ?? localStorage.getItem(LS_KEY) ?? samples[0].sql
+  localStorage.getItem(LS_KEY) ?? samples[0].sql
 
 export const useStore = create<State>((set) => ({
   sql: initialSql,
@@ -136,3 +116,11 @@ export const useStore = create<State>((set) => ({
       focus: { table, column, nonce: (s.focus?.nonce ?? 0) + 1 },
     })),
 }))
+
+// Hydrate from a shared link (decode is async; the captured token was
+// already stripped from the URL synchronously above).
+if (pendingShareToken) {
+  decodeSql(pendingShareToken).then((sql) => {
+    if (sql) useStore.getState().setSql(sql)
+  })
+}

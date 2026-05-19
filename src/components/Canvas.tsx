@@ -8,6 +8,7 @@ import {
   ReactFlow,
   ReactFlowProvider,
   useEdgesState,
+  useNodesInitialized,
   useNodesState,
   useReactFlow,
   type Edge,
@@ -30,7 +31,9 @@ function Flow() {
   const collapsed = useStore((s) => s.collapsed)
   const focus = useStore((s) => s.focus)
   const theme = useStore((s) => s.theme)
-  const { fitView, setCenter, getNode } = useReactFlow()
+  const commentMode = useStore((s) => s.commentMode)
+  const { fitView, setCenter, getNode, getNodes } = useReactFlow()
+  const nodesInitialized = useNodesInitialized()
 
   const pal =
     theme === 'light'
@@ -79,8 +82,15 @@ function Flow() {
   }, [schema])
 
   const laidOut = useMemo(
-    () => layout(baseNodes, baseEdges, direction, collapsed),
-    [baseNodes, baseEdges, direction, collapsed],
+    () =>
+      layout(
+        baseNodes,
+        baseEdges,
+        direction,
+        collapsed,
+        commentMode === 'inline',
+      ),
+    [baseNodes, baseEdges, direction, collapsed, commentMode],
   )
 
   const [nodes, setNodes, onNodesChange] = useNodesState(laidOut)
@@ -94,6 +104,59 @@ function Flow() {
     setEdges(baseEdges)
     requestAnimationFrame(() => fitView({ padding: 0.15, duration: 400 }))
   }, [laidOut, baseEdges, setNodes, setEdges, fitView, relayoutNonce])
+
+  // Measured re-layout: once nodes have rendered, re-run dagre using their
+  // REAL heights (estimates ignore wrapped comment lines), so nodes never
+  // overlap regardless of comment mode / text wrapping. Keyed by a signature
+  // so it runs once per layout-affecting change, not on every render.
+  const lastSig = useRef('')
+  useEffect(() => {
+    if (!nodesInitialized) return
+    const sig = JSON.stringify([
+      schema.tables.map((t) => t.name),
+      direction,
+      Object.keys(collapsed).sort(),
+      commentMode,
+      relayoutNonce,
+    ])
+    if (sig === lastSig.current) return
+    const measure = () => {
+      const cur = getNodes()
+      const sizes = new Map(
+        cur.map((n) => [
+          n.id,
+          {
+            width: n.measured?.width ?? 260,
+            height: n.measured?.height ?? 0,
+          },
+        ]),
+      )
+      // bail until heights are actually known, retry next frame
+      if ([...sizes.values()].some((s) => s.height === 0)) {
+        requestAnimationFrame(measure)
+        return
+      }
+      lastSig.current = sig
+      setNodes(
+        layout(cur, baseEdges, direction, collapsed, false, sizes),
+      )
+      requestAnimationFrame(() =>
+        fitView({ padding: 0.15, duration: 300 }),
+      )
+    }
+    requestAnimationFrame(measure)
+  }, [
+    nodesInitialized,
+    schema,
+    direction,
+    collapsed,
+    commentMode,
+    relayoutNonce,
+    baseEdges,
+    getNodes,
+    setNodes,
+    fitView,
+  ])
 
   // search highlight + connected-edge emphasis (matches table OR any column)
   useEffect(() => {

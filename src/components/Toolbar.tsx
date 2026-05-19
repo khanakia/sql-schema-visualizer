@@ -27,7 +27,7 @@ export function Toolbar({ onFit, onExport }: Props) {
 
   const [shared, setShared] = useState<'ok' | 'big' | null>(null)
   const onShare = async () => {
-    const url = buildShareUrl(sql)
+    const url = await buildShareUrl(sql)
     const tooBig = url.length > SHARE_URL_SOFT_LIMIT
     if (
       tooBig &&
