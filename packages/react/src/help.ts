@@ -118,6 +118,13 @@ export const defaultHelpEntries: HelpEntry[] = [
 
   // ── Reading the diagram ─────────────────────────────────────────
   {
+    id: 'doc-annotations',
+    section: 'Reading the diagram',
+    title: 'Rich markdown descriptions on tables and columns',
+    body: 'Wrap a multi-line markdown block in /* @doc … */ and place it above a CREATE TABLE for a table description, or above a column line (inside the parens) for a column description. Renders as a 📖 (table) or 📝 (column) badge on the diagram — hover the badge for a wider popover with rendered markdown. Headings, bold, italic, inline + fenced code, lists, and links are supported. Multiple @doc blocks above the same target concatenate with a blank line between.',
+    keywords: ['doc', 'description', 'markdown', 'notes', 'about', '@doc'],
+  },
+  {
     id: 'unique-glyphs',
     section: 'Reading the diagram',
     title: 'UNIQUE columns and composite UNIQUE constraints',

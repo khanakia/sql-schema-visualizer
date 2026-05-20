@@ -160,6 +160,106 @@ describe('parseSchema — resilience', () => {
   })
 })
 
+describe('/* @doc */ markdown descriptions', () => {
+  it('captures a table-level @doc block above CREATE TABLE', () => {
+    const s = parseSchema(`
+/* @doc
+# Users
+
+The authoritative account table.
+*/
+CREATE TABLE users (id INT PRIMARY KEY);
+`)
+    expect(s.tables[0].description).toBe('# Users\n\nThe authoritative account table.')
+  })
+
+  it('captures a column-level @doc block above a column line', () => {
+    const s = parseSchema(`
+CREATE TABLE users (
+  id INT PRIMARY KEY,
+  /* @doc
+  ## email
+
+  Lower-cased at the **app layer**.
+  */
+  email VARCHAR(255) NOT NULL UNIQUE
+);
+`)
+    const col = s.tables[0].columns.find((c) => c.name === 'email')!
+    expect(col.description).toBe('## email\n\nLower-cased at the **app layer**.')
+    // Single-line `--` comments still work as the short label.
+    expect(col.comment).toBeUndefined()
+  })
+
+  it('multiple @doc blocks above the same target concatenate', () => {
+    const s = parseSchema(`
+/* @doc
+First paragraph.
+*/
+/* @doc
+Second paragraph.
+*/
+CREATE TABLE t (id INT PRIMARY KEY);
+`)
+    expect(s.tables[0].description).toBe('First paragraph.\n\nSecond paragraph.')
+  })
+
+  it('single-line @doc /* @doc … */ also works', () => {
+    const s = parseSchema(`
+/* @doc Short table note. */
+CREATE TABLE t (
+  /* @doc Short column note. */
+  id INT PRIMARY KEY
+);
+`)
+    expect(s.tables[0].description).toBe('Short table note.')
+    expect(s.tables[0].columns[0].description).toBe('Short column note.')
+  })
+
+  it('plain block comments without @doc are NOT picked up as descriptions', () => {
+    const s = parseSchema(`
+/* This is a regular block comment. */
+CREATE TABLE t (id INT PRIMARY KEY);
+`)
+    expect(s.tables[0].description).toBeUndefined()
+  })
+
+  it('markdown headings inside @doc do NOT corrupt column comments', () => {
+    const s = parseSchema(`
+CREATE TABLE t (
+  id INT PRIMARY KEY,
+  /* @doc
+  # heading
+  body
+  */
+  name TEXT
+);
+`)
+    // 'heading' must NOT have leaked onto id.comment via the MySQL `#`
+    // line-comment path — associateComments skips @doc blocks.
+    expect(s.tables[0].columns.find((c) => c.name === 'id')?.comment).toBeUndefined()
+    expect(s.tables[0].columns.find((c) => c.name === 'name')?.description).toBe('# heading\nbody')
+  })
+
+  it('table + column @doc coexist with @group annotation on the same table', () => {
+    const s = parseSchema(`
+-- @group: auth
+/* @doc
+# Users
+The account table.
+*/
+CREATE TABLE users (
+  id INT PRIMARY KEY,
+  /* @doc Lower-cased at app layer. */
+  email TEXT NOT NULL UNIQUE
+);
+`)
+    expect(s.groupAnnotations).toEqual({ auth: ['users'] })
+    expect(s.tables[0].description).toBe('# Users\nThe account table.')
+    expect(s.tables[0].columns.find((c) => c.name === 'email')?.description).toBe('Lower-cased at app layer.')
+  })
+})
+
 describe('composite UNIQUE constraints', () => {
   it('captures a multi-column UNIQUE as a structured group', () => {
     const s = parseSchema(`

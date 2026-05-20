@@ -100,6 +100,10 @@ export {
 // and custom canvases.
 export { computeVisibleSet, edgeIsVisible } from './groups'
 
+// tiny safe markdown renderer used by table / column /​* @doc *​/
+// descriptions. Exposed so consumers can use it elsewhere.
+export { renderMarkdown } from './markdown'
+
 // pluggable persistence
 export { setStorageAdapter, type StorageAdapter } from './storage'
 

@@ -11,13 +11,23 @@ export interface Column {
   unique: boolean
   fk?: { table: string; column: string }
   default?: string
+  /** Short single-line description from a trailing `--` comment. */
   comment?: string
+  /** Long markdown body from a `/* @doc ... *​/` block immediately above
+   *  this column line (inside the CREATE TABLE parens). Multiple `@doc`
+   *  blocks above the same column concatenate with `\n\n`. */
+  description?: string
 }
 
 export interface Table {
   name: string
   columns: Column[]
+  /** Short single-line description (legacy: `--` comment near CREATE). */
   comment?: string
+  /** Long markdown body from a `/* @doc ... *​/` block OUTSIDE the
+   *  CREATE TABLE parens (typically immediately above it). Multiple
+   *  `@doc` blocks for the same table concatenate with `\n\n`. */
+  description?: string
   /**
    * Composite (multi-column) UNIQUE constraints declared on the table,
    * preserving each constraint's column tuple as a group. Single-column
@@ -219,6 +229,194 @@ function matchGroupAnnotation(comment: string): string[] | null {
   return names.length > 0 ? names : null
 }
 
+/**
+ * Extract `/​* @doc ... *​/` markdown-body annotations and attribute
+ * them to the next table (when the block is OUTSIDE parens) or the
+ * next column definition (when the block is INSIDE parens). Multiple
+ * @doc blocks for the same target concatenate with `\n\n` so several
+ * blocks can stack to compose richer prose.
+ *
+ * Runs as a SEPARATE pass after `associateComments`, scanning the
+ * original (pre-strip) input. The pass is paren-depth-aware so the
+ * same `@doc` syntax can target a table or a column depending on
+ * where it sits — see PLAN.md / SAMPLE_SCHEMAS.md for the convention.
+ */
+/** Strip the longest common leading whitespace shared by every non-empty
+ *  line. Lets users indent `/​* @doc ... *​/` bodies inside the CREATE
+ *  parens for readability without that indent showing up in the
+ *  rendered markdown. */
+function dedent(s: string): string {
+  const lines = s.split('\n')
+  let min = Infinity
+  for (const l of lines) {
+    if (l.trim() === '') continue
+    const m = l.match(/^[ \t]*/)
+    const lead = m ? m[0].length : 0
+    if (lead < min) min = lead
+  }
+  if (!isFinite(min) || min === 0) return s
+  return lines.map((l) => l.slice(min)).join('\n')
+}
+
+function extractDocAnnotations(
+  input: string,
+  byName: Map<string, Table>,
+): void {
+  const lines = input.split(/\r?\n/)
+  let table: Table | null = null
+  let parenDepth = 0
+  // @doc block accumulator (multi-line).
+  let inDoc = false
+  let docBuffer: string[] = []
+  let docStartParenDepth = 0
+  // Block captured but not yet attributed (waiting for the next
+  // CREATE TABLE or column line). Held inside an object so TS doesn't
+  // narrow it to `null` after each `pending.v = null` assignment in
+  // the loop — closure writes from `pushPending` are otherwise
+  // invisible to control-flow narrowing.
+  const pending: { v: { body: string; wasInParen: boolean } | null } = {
+    v: null,
+  }
+
+  const docOpen = /\/\*\s*@doc\b\s?(.*)$/
+  const merge = (cur: string | undefined, next: string) =>
+    cur ? `${cur}\n\n${next}` : next
+  // Push a freshly-captured @doc body onto `pending`. If a previous
+  // pending block has the SAME scope (both outside parens, or both
+  // inside) the two concatenate — that's the "multiple @doc blocks
+  // above the same target accumulate" rule.
+  const pushPending = (body: string, wasInParen: boolean) => {
+    if (pending.v && pending.v.wasInParen === wasInParen) {
+      pending.v = { body: merge(pending.v.body, body), wasInParen }
+    } else {
+      pending.v = { body, wasInParen }
+    }
+  }
+
+  // Update paren depth by walking characters in `s`, ignoring SQL
+  // strings and trailing `--` comments. Block comments shouldn't be
+  // counted (they're handled by the @doc state machine above).
+  const trackParens = (s: string) => {
+    let inStr = false
+    let strCh = ''
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i]
+      if (inStr) {
+        if (ch === strCh && s[i - 1] !== '\\') inStr = false
+        continue
+      }
+      if (ch === '-' && s[i + 1] === '-') break // rest is line comment
+      if (ch === '/' && s[i + 1] === '*') {
+        // Skip past closing */ on the same line if present.
+        const close = s.indexOf('*/', i + 2)
+        if (close !== -1) {
+          i = close + 1
+          continue
+        }
+        break // unterminated on this line — handled by @doc state next iters
+      }
+      if (ch === "'" || ch === '"' || ch === '`') {
+        inStr = true
+        strCh = ch
+        continue
+      }
+      if (ch === '(') parenDepth++
+      else if (ch === ')') parenDepth = Math.max(0, parenDepth - 1)
+    }
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+
+    // ── @doc block state machine ───────────────────────────────────
+    if (inDoc) {
+      const closeIdx = line.indexOf('*/')
+      if (closeIdx === -1) {
+        docBuffer.push(line)
+        continue
+      }
+      docBuffer.push(line.slice(0, closeIdx))
+      const body = dedent(
+        docBuffer
+          .join('\n')
+          .replace(/^\s*\n/, '')   // drop leading blank line
+          .replace(/\n\s*$/, ''),  // drop trailing blank line
+      )
+      pushPending(body, docStartParenDepth > 0)
+      inDoc = false
+      docBuffer = []
+      // Whatever comes after */ on this line is rare DDL; ignore for
+      // attribution. paren/column logic skipped for the rest of line.
+      continue
+    } else {
+      const m = line.match(docOpen)
+      if (m) {
+        const after = m[1] ?? ''
+        const closeIdx = after.indexOf('*/')
+        if (closeIdx !== -1) {
+          // Single-line @doc block.
+          pushPending(after.slice(0, closeIdx).trim(), parenDepth > 0)
+        } else {
+          inDoc = true
+          docStartParenDepth = parenDepth
+          docBuffer = after ? [after] : []
+        }
+        continue
+      }
+    }
+
+    // ── CREATE TABLE? attribute outside-parens @doc to the table ──
+    const create = line.toLowerCase().match(
+      /create\s+(?:\w+\s+)*table\s+(?:if\s+not\s+exists\s+)?([^\s(]+)/,
+    )
+    if (create) {
+      const tname = cleanIdent(create[1])
+      table = byName.get(tname) ?? null
+      const p = pending.v
+      if (table && p && !p.wasInParen) {
+        table.description = merge(table.description, p.body)
+        pending.v = null
+      }
+      trackParens(line)
+      if (line.includes(';')) {
+        parenDepth = 0
+        table = null
+        pending.v = null
+      }
+      continue
+    }
+
+    if (!table) {
+      // Not in any CREATE TABLE body. Just track parens for safety;
+      // outside-CREATE @doc blocks with no follow-up table are dropped.
+      trackParens(line)
+      continue
+    }
+
+    // ── Column-definition line? attribute in-parens @doc to it ────
+    const { code } = splitLineComment(line)
+    const head = code.match(COL_HEAD)
+    if (head) {
+      const ident = cleanIdent(head[1])
+      if (!CONSTRAINT_KEYWORDS.test(ident)) {
+        const col = table.columns.find((c) => c.name === ident)
+        const p = pending.v
+        if (col && p && p.wasInParen) {
+          col.description = merge(col.description, p.body)
+          pending.v = null
+        }
+      }
+    }
+
+    trackParens(line)
+    if (line.includes(';')) {
+      parenDepth = 0
+      table = null
+      pending.v = null
+    }
+  }
+}
+
 function associateComments(
   input: string,
   byName: Map<string, Table>,
@@ -230,6 +428,13 @@ function associateComments(
   // Group names accumulated from comment-only lines that precede the
   // next CREATE TABLE. Reset after each CREATE or at a statement end.
   let pendingGroups: string[] = []
+  // Skip lines inside `/* @doc ... */` blocks — those bodies are
+  // markdown (extracted separately by extractDocAnnotations) and must
+  // not be re-parsed as `--` / `#` table comments here. A `# Heading`
+  // line inside an @doc block would otherwise be mis-read as a MySQL
+  // line-comment and attached to the previous column.
+  let inDoc = false
+  const docOpenRe = /\/\*\s*@doc\b/
   const add = (cur: string | undefined, next: string) =>
     cur ? `${cur} ${next}` : next
   const recordGroups = (names: string[], tname: string) => {
@@ -240,6 +445,17 @@ function associateComments(
   }
 
   for (const line of lines) {
+    if (inDoc) {
+      if (line.includes('*/')) inDoc = false
+      continue
+    }
+    if (docOpenRe.test(line)) {
+      // Enter @doc state only if the closing */ isn't on the same line.
+      const after = line.slice(line.search(docOpenRe))
+      const closeIdx = after.indexOf('*/', after.indexOf('@doc') + 4)
+      if (closeIdx === -1) inDoc = true
+      continue
+    }
     const { code, comment } = splitLineComment(line)
     const lc = code.toLowerCase()
 
@@ -466,6 +682,7 @@ export function parseSchema(input: string): Schema {
   }
 
   associateComments(input, tableByName, groupAnnotations)
+  extractDocAnnotations(input, tableByName)
 
   if (tables.length === 0)
     warnings.push('No CREATE TABLE statements found in the input.')

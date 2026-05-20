@@ -549,4 +549,85 @@ CREATE TABLE statements (   -- precomputed monthly view per account
   closing_cents BIGINT NOT NULL
 );`,
   },
+  {
+    id: 'doc-demo',
+    name: 'Documented schema (@doc demo)',
+    dialect: 'PostgreSQL',
+    sql: `-- Hover the 📖 next to a table name or the 📝 next to a column for
+-- the rendered markdown. Edit the /* @doc … */ blocks below — the
+-- diagram updates as you type. Both annotation kinds (table-level
+-- @doc above CREATE, column-level @doc inside the parens above a
+-- column line) can coexist with -- @group: tags and inline -- column
+-- comments.
+
+-- @group: auth
+/* @doc
+# users
+
+The authoritative account table. **One row per registered user.**
+
+## conventions
+
+- \`email\` is lower-cased at the app layer; the UNIQUE constraint
+  is case-sensitive so anything but lowercase will store dupes.
+- \`created_at\` is UTC.
+- Soft-deletes go to \`users_deleted\` — never DELETE from this table
+  in app code.
+
+See also: [internal handbook](https://example.com/handbook/users).
+*/
+CREATE TABLE users (
+  id           SERIAL PRIMARY KEY,
+
+  /* @doc
+  ## email
+
+  The canonical **login key**.
+
+  - Lower-cased at the app layer (the DB constraint is case-sensitive)
+  - Subject to GDPR erasure — see \`users_deleted\` for the archive row
+  - Never re-issued: deleted addresses stay reserved
+  */
+  email        VARCHAR(255) NOT NULL UNIQUE,
+
+  /* @doc Short single-line description also works as @doc. */
+  full_name    VARCHAR(120) NOT NULL,
+
+  created_at   TIMESTAMPTZ  NOT NULL DEFAULT now()    -- short comment, no @doc
+);
+
+-- @group: auth
+/* @doc
+# sessions
+
+Active login sessions. **Cookies map 1:1 to a row here.**
+
+Cleanup: a cron prunes rows where \`expires_at < now() - interval '7 days'\`.
+*/
+CREATE TABLE sessions (
+  id           SERIAL PRIMARY KEY,
+  user_id      INTEGER NOT NULL REFERENCES users(id),
+  token        VARCHAR(64) NOT NULL UNIQUE,
+  expires_at   TIMESTAMPTZ NOT NULL
+);
+
+-- @group: billing
+/* @doc
+# invoices
+
+Generated **monthly** by the billing cron from outstanding line items.
+
+\`\`\`
+total_cents = SUM(line.cents) WHERE invoice_id = invoices.id
+\`\`\`
+
+States: \`draft\` → \`open\` → \`paid\` | \`void\`.
+*/
+CREATE TABLE invoices (
+  id           SERIAL PRIMARY KEY,
+  user_id      INTEGER NOT NULL REFERENCES users(id),
+  total_cents  INTEGER NOT NULL,
+  state        VARCHAR(20) NOT NULL DEFAULT 'draft'
+);`,
+  },
 ]

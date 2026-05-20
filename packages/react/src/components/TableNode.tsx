@@ -1,11 +1,14 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import type { Column } from '@khanakia/sql-schema-core'
 import { useStore } from '../store'
+import { renderMarkdown } from '../markdown'
 
 export interface TableNodeData {
   label: string
   columns: Column[]
   tableComment?: string
+  /** Long markdown body from a `/​* @doc ... *​/` block above the table. */
+  tableDescription?: string
   /** Multi-column UNIQUE constraints, rendered as a footer per group. */
   compositeUniques?: string[][]
   dim: boolean
@@ -21,6 +24,18 @@ function Popover({ text }: { text: string }) {
   return (
     <div className="pointer-events-none absolute left-full top-0 z-50 ml-2 hidden w-56 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-[11px] italic leading-snug text-[var(--text)] shadow-xl group-hover:block whitespace-normal break-words">
       {text}
+    </div>
+  )
+}
+
+/** Wider markdown-aware popover for `/​* @doc *​/` descriptions.
+ *  Tied to a `group/doc` parent (separate group name so it doesn't
+ *  fight with the short-comment Popover, which lives on a plain
+ *  `group` parent). pointer-events-auto so users can click links. */
+function MarkdownPopover({ body }: { body: string }) {
+  return (
+    <div className="absolute left-full top-0 z-50 ml-2 hidden max-h-72 w-80 overflow-y-auto rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-[var(--text)] shadow-xl group-hover/doc:block">
+      {renderMarkdown(body)}
     </div>
   )
 }
@@ -76,6 +91,18 @@ export function TableNode({ data, selected }: NodeProps) {
           <span className="truncate">{d.label}</span>
           {hover && d.tableComment && (
             <span className="text-[9px] text-purple-400">●</span>
+          )}
+          {d.tableDescription && (
+            // 📖 — table-level /* @doc */ markdown body. Wrapped in a
+            // `group` container with its own MarkdownPopover so it
+            // doesn't fight with the row-level comment popover.
+            <span
+              className="group/doc relative text-[11px] text-purple-300"
+              title="Open table description (hover for preview)"
+            >
+              📖
+              <MarkdownPopover body={d.tableDescription} />
+            </span>
           )}
         </span>
         <span className="text-[10px] text-[var(--text-soft)] tabular-nums">
@@ -181,6 +208,17 @@ export function TableNode({ data, selected }: NodeProps) {
                     <span className="text-rose-400/70" title="NOT NULL">
                       {' '}
                       *
+                    </span>
+                  )}
+                  {c.description && (
+                    // 📝 — column-level /* @doc */ markdown. Same
+                    // hover-popover affordance as the table 📖.
+                    <span
+                      className="group/doc relative ml-1 text-[10px] text-purple-300"
+                      title="Hover for column description"
+                    >
+                      📝
+                      <MarkdownPopover body={c.description} />
                     </span>
                   )}
                   {/* UNIQUE glyph — skipped on PK rows since PKs are
