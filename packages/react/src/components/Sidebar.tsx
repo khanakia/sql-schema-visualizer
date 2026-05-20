@@ -25,7 +25,9 @@ export function Sidebar({
   showHeader = true,
 }: SchemaSidebarProps = {}) {
   const tableCount = useStore((s) => s.schema.tables.length)
-  const [tab, setTab] = useState<'tables' | 'sql'>('tables')
+  const groupCount = useStore((s) => Object.keys(s.groups).length)
+  const activeGroup = useStore((s) => s.activeGroup)
+  const [tab, setTab] = useState<'tables' | 'groups' | 'sql'>('tables')
 
   return (
     <aside
@@ -46,31 +48,47 @@ export function Sidebar({
         <SchemaSearch />
       </div>
 
-      <GroupsPanel />
-
+      {/* Three-tab strip. Groups gets a small dot indicator when a group
+          is currently filtering the canvas, so it's discoverable even
+          when the user is on a different tab. */}
       <div className="flex border-b border-[var(--border-soft)] text-xs">
-        {(['tables', 'sql'] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex-1 py-2 capitalize transition-colors ${
-              tab === t
-                ? 'text-purple-400 border-b-2 border-purple-500'
-                : 'text-[var(--text-soft)] hover:text-[var(--text)]'
-            }`}
-          >
-            {t === 'tables'
+        {(['tables', 'groups', 'sql'] as const).map((t) => {
+          const label =
+            t === 'tables'
               ? `Tables (${tableCount})`
-              : '⊕ Paste / Import SQL'}
-          </button>
-        ))}
+              : t === 'groups'
+                ? `Groups (${groupCount})`
+                : '⊕ Paste / Import SQL'
+          return (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`flex-1 py-2 capitalize transition-colors ${
+                tab === t
+                  ? 'text-purple-400 border-b-2 border-purple-500'
+                  : 'text-[var(--text-soft)] hover:text-[var(--text)]'
+              }`}
+              title={
+                t === 'groups' && activeGroup
+                  ? `A group is filtering the canvas: ${activeGroup}`
+                  : undefined
+              }
+            >
+              {label}
+              {t === 'groups' && activeGroup && (
+                <span
+                  aria-hidden
+                  className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-purple-400"
+                />
+              )}
+            </button>
+          )
+        })}
       </div>
 
-      {tab === 'tables' ? (
-        <TableList className="flex-1" />
-      ) : (
-        <SqlImport />
-      )}
+      {tab === 'tables' && <TableList className="flex-1" />}
+      {tab === 'groups' && <GroupsPanel className="flex-1 overflow-y-auto" />}
+      {tab === 'sql' && <SqlImport />}
     </aside>
   )
 }

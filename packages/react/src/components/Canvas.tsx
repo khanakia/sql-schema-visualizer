@@ -288,11 +288,13 @@ function Flow(props: SchemaCanvasProps) {
     }
   }, [activeGroup, visibleSet])
 
-  // Right-click context menu state for the "Groups" submenu on a table
-  // node. Null when closed; positioned at the click coords when open.
-  // Click-outside / Escape dismisses (see effect below).
+  // Right-click context menu state for the "Groups" submenu. Targets
+  // ONE OR MORE tables: if the right-clicked node is part of a current
+  // multi-selection (Shift- / ⌘-Cmd-clicked), the menu acts on the
+  // whole selection in one shot — that's the bulk-add affordance. If
+  // not, it acts on just that single node. Null when closed.
   const [ctxMenu, setCtxMenu] = useState<
-    { x: number; y: number; tableId: string } | null
+    { x: number; y: number; tableIds: string[] } | null
   >(null)
 
   // Dismiss the ctx menu on Escape or any mousedown outside it.
@@ -514,7 +516,17 @@ function Flow(props: SchemaCanvasProps) {
           // the right-click on table nodes. The pane and edges still
           // get the default browser menu — keeps debugging accessible.
           e.preventDefault()
-          setCtxMenu({ x: e.clientX, y: e.clientY, tableId: n.id })
+          // Collect the current multi-selection. If the right-clicked
+          // node is part of it, the menu acts on the whole selection
+          // (bulk add). Otherwise act on just the right-clicked node.
+          const selectedIds = getNodes()
+            .filter((node) => node.selected)
+            .map((node) => node.id)
+          const tableIds =
+            selectedIds.length > 1 && selectedIds.includes(n.id)
+              ? selectedIds
+              : [n.id]
+          setCtxMenu({ x: e.clientX, y: e.clientY, tableIds })
         }}
         // Click an FK edge -> jump to the OPPOSITE end of where we're
         // currently focused (ping-pong). With no current focus, jump
@@ -568,7 +580,7 @@ function Flow(props: SchemaCanvasProps) {
         <GroupsContextMenu
           x={ctxMenu.x}
           y={ctxMenu.y}
-          tableId={ctxMenu.tableId}
+          tableIds={ctxMenu.tableIds}
           onClose={() => setCtxMenu(null)}
         />
       )}
@@ -638,12 +650,12 @@ export function Canvas(props: SchemaCanvasProps = {}) {
 function GroupsContextMenu({
   x,
   y,
-  tableId,
+  tableIds,
   onClose,
 }: {
   x: number
   y: number
-  tableId: string
+  tableIds: string[]   // 1+ targets; >1 = bulk multi-select action
   onClose: () => void
 }) {
   const groups = useStore((s) => s.groups)
@@ -651,21 +663,24 @@ function GroupsContextMenu({
   const removeFromGroup = useStore((s) => s.removeFromGroup)
   const createGroup = useStore((s) => s.createGroup)
   const entries = Object.entries(groups)
+  const isMulti = tableIds.length > 1
+  // Friendly label for the menu header + buttons.
+  const targetLabel = isMulti
+    ? `${tableIds.length} tables selected`
+    : tableIds[0]
   return (
     <div
       data-groups-ctxmenu
-      // Clamp to viewport so the menu doesn't render off-screen when
-      // right-clicking near the edges. Small fixed-position popover.
       style={{
         position: 'fixed',
         left: Math.min(x, window.innerWidth - 240),
         top: Math.min(y, window.innerHeight - 220),
         zIndex: 50,
       }}
-      className="min-w-[200px] rounded-md border border-[var(--border)] bg-[var(--surface)] py-1 text-xs shadow-xl"
+      className="min-w-[220px] rounded-md border border-[var(--border)] bg-[var(--surface)] py-1 text-xs shadow-xl"
     >
       <div className="px-3 py-1 text-[10px] uppercase tracking-wide text-[var(--text-soft)]">
-        Groups — {tableId}
+        Groups — {targetLabel}
       </div>
       {entries.length === 0 && (
         <div className="px-3 py-1 text-[11px] text-[var(--text-soft)]">
@@ -673,22 +688,45 @@ function GroupsContextMenu({
         </div>
       )}
       {entries.map(([name, members]) => {
-        const inGroup = members.includes(tableId)
+        // For bulk semantics: all-in => "Remove all"; some-in or none-in
+        // => "Add missing" (adds the ones not already members). This is
+        // the most common intent and keeps the menu single-button per
+        // group rather than two confusing modes.
+        const memberSet = new Set(members)
+        const inCount = tableIds.filter((t) => memberSet.has(t)).length
+        const allIn = inCount === tableIds.length
         return (
           <button
             key={name}
             type="button"
             onClick={() => {
-              if (inGroup) removeFromGroup(name, tableId)
-              else addToGroup(name, [tableId])
+              if (allIn) {
+                // Remove every selected from this group.
+                for (const t of tableIds) removeFromGroup(name, t)
+              } else {
+                // Add only the ones not already in (addToGroup dedups
+                // internally but skipping known ones is clearer).
+                addToGroup(
+                  name,
+                  tableIds.filter((t) => !memberSet.has(t)),
+                )
+              }
               onClose()
             }}
             className="flex w-full items-center gap-2 px-3 py-1 text-left hover:bg-[var(--surface-2)]"
           >
-            <span className="w-3 text-purple-400">{inGroup ? '✓' : ''}</span>
+            <span className="w-3 text-purple-400">{allIn ? '✓' : ''}</span>
             <span className="flex-1 truncate text-[var(--text)]">{name}</span>
             <span className="text-[10px] text-[var(--text-soft)]">
-              {inGroup ? 'Remove' : 'Add'}
+              {allIn
+                ? isMulti
+                  ? `Remove all (${inCount})`
+                  : 'Remove'
+                : isMulti
+                  ? `Add ${tableIds.length - inCount}${
+                      inCount > 0 ? ` (${inCount} already in)` : ''
+                    }`
+                  : 'Add'}
             </span>
           </button>
         )
@@ -697,20 +735,28 @@ function GroupsContextMenu({
       <button
         type="button"
         onClick={() => {
-          const n = window.prompt(`New group from "${tableId}":`, tableId)
+          const placeholder = isMulti ? '' : tableIds[0]
+          const n = window.prompt(
+            isMulti
+              ? `New group containing ${tableIds.length} tables:`
+              : `New group from "${tableIds[0]}":`,
+            placeholder,
+          )
           if (n === null) return
           const trimmed = n.trim()
           if (!trimmed) return
           createGroup(trimmed)
-          // Re-read after create; the store rejects dups, so the
-          // addToGroup is safe whether or not we actually created.
-          addToGroup(trimmed, [tableId])
+          addToGroup(trimmed, tableIds)
           onClose()
         }}
         className="flex w-full items-center gap-2 px-3 py-1 text-left text-[var(--text)] hover:bg-[var(--surface-2)]"
       >
         <span className="w-3 text-[var(--text-soft)]">+</span>
-        <span>New group from this table…</span>
+        <span>
+          {isMulti
+            ? `New group from ${tableIds.length} tables…`
+            : 'New group from this table…'}
+        </span>
       </button>
     </div>
   )

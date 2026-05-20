@@ -286,4 +286,251 @@ CREATE TABLE invoice_items (
   cents       INTEGER NOT NULL
 );`,
   },
+  {
+    id: 'social',
+    name: 'Social network',
+    dialect: 'PostgreSQL',
+    sql: `-- Twitter-shaped schema: self-referential many-to-many follows,
+-- posts with hashtags (M2M), likes, and notifications.
+
+CREATE TABLE users (
+  id           SERIAL PRIMARY KEY,
+  handle       VARCHAR(40) NOT NULL UNIQUE,   -- @handle, lowercase
+  display_name VARCHAR(80) NOT NULL,
+  bio          TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Self-referential many-to-many: who follows whom.
+CREATE TABLE follows (
+  follower_id  INTEGER NOT NULL REFERENCES users(id),
+  followee_id  INTEGER NOT NULL REFERENCES users(id),
+  followed_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (follower_id, followee_id)
+);
+
+CREATE TABLE posts (
+  id          SERIAL PRIMARY KEY,
+  author_id   INTEGER NOT NULL REFERENCES users(id),
+  body        VARCHAR(280) NOT NULL,
+  reply_to    INTEGER REFERENCES posts(id),     -- nullable: top-level vs thread reply
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE hashtags (
+  id    SERIAL PRIMARY KEY,
+  tag   VARCHAR(40) NOT NULL UNIQUE          -- without the '#'
+);
+
+CREATE TABLE post_hashtags (   -- many-to-many
+  post_id    INTEGER NOT NULL REFERENCES posts(id),
+  hashtag_id INTEGER NOT NULL REFERENCES hashtags(id),
+  PRIMARY KEY (post_id, hashtag_id)
+);
+
+CREATE TABLE likes (
+  user_id    INTEGER NOT NULL REFERENCES users(id),
+  post_id    INTEGER NOT NULL REFERENCES posts(id),
+  liked_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, post_id)
+);
+
+CREATE TABLE notifications (
+  id          SERIAL PRIMARY KEY,
+  recipient   INTEGER NOT NULL REFERENCES users(id),
+  actor       INTEGER NOT NULL REFERENCES users(id),   -- who triggered it
+  post_id     INTEGER REFERENCES posts(id),            -- nullable: not all notifs are post-bound
+  kind        VARCHAR(20) NOT NULL,                    -- follow|like|reply|mention
+  read_at     TIMESTAMPTZ                              -- nullable: unread
+);`,
+  },
+  {
+    id: 'project-mgmt',
+    name: 'Project management (MySQL)',
+    dialect: 'MySQL',
+    sql: `-- MySQL dialect: backticks, AUTO_INCREMENT, composite PKs, indexes
+-- declared inside the CREATE TABLE. Jira/Linear-lite.
+
+CREATE TABLE \`workspaces\` (
+  \`id\`   INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  \`name\` VARCHAR(120) NOT NULL,
+  \`slug\` VARCHAR(40) NOT NULL UNIQUE,
+  PRIMARY KEY (\`id\`)
+);
+
+CREATE TABLE \`members\` (
+  \`id\`           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  \`workspace_id\` INT UNSIGNED NOT NULL,
+  \`email\`        VARCHAR(255) NOT NULL,
+  \`role\`         ENUM('owner','admin','member','viewer') NOT NULL DEFAULT 'member',
+  PRIMARY KEY (\`id\`),
+  UNIQUE KEY \`uq_member_workspace_email\` (\`workspace_id\`, \`email\`),
+  CONSTRAINT \`fk_member_workspace\` FOREIGN KEY (\`workspace_id\`) REFERENCES \`workspaces\` (\`id\`)
+);
+
+CREATE TABLE \`projects\` (
+  \`id\`           INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  \`workspace_id\` INT UNSIGNED NOT NULL,
+  \`name\`         VARCHAR(120) NOT NULL,
+  \`key\`          VARCHAR(10)  NOT NULL,    -- short code shown in ticket ids
+  \`archived\`     TINYINT(1)   NOT NULL DEFAULT 0,
+  PRIMARY KEY (\`id\`),
+  CONSTRAINT \`fk_project_workspace\` FOREIGN KEY (\`workspace_id\`) REFERENCES \`workspaces\` (\`id\`)
+);
+
+CREATE TABLE \`tickets\` (
+  \`id\`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  \`project_id\` INT UNSIGNED NOT NULL,
+  \`title\`      VARCHAR(200) NOT NULL,
+  \`body\`       TEXT,
+  \`status\`     ENUM('todo','in_progress','review','done','cancelled') NOT NULL DEFAULT 'todo',
+  \`priority\`   TINYINT NOT NULL DEFAULT 2,         -- 1=urgent..4=low
+  \`assignee\`   INT UNSIGNED,                        -- nullable: unassigned
+  \`parent_id\`  INT UNSIGNED,                        -- nullable: epic -> subtask self-ref
+  PRIMARY KEY (\`id\`),
+  CONSTRAINT \`fk_ticket_project\`  FOREIGN KEY (\`project_id\`) REFERENCES \`projects\` (\`id\`),
+  CONSTRAINT \`fk_ticket_assignee\` FOREIGN KEY (\`assignee\`)   REFERENCES \`members\`  (\`id\`),
+  CONSTRAINT \`fk_ticket_parent\`   FOREIGN KEY (\`parent_id\`)  REFERENCES \`tickets\`  (\`id\`)
+);
+
+CREATE TABLE \`labels\` (
+  \`id\`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  \`project_id\` INT UNSIGNED NOT NULL,
+  \`name\`       VARCHAR(40) NOT NULL,
+  \`color\`      CHAR(7) NOT NULL DEFAULT '#888888',
+  PRIMARY KEY (\`id\`),
+  CONSTRAINT \`fk_label_project\` FOREIGN KEY (\`project_id\`) REFERENCES \`projects\` (\`id\`)
+);
+
+CREATE TABLE \`ticket_labels\` (   -- many-to-many
+  \`ticket_id\` INT UNSIGNED NOT NULL,
+  \`label_id\`  INT UNSIGNED NOT NULL,
+  PRIMARY KEY (\`ticket_id\`, \`label_id\`),
+  CONSTRAINT \`fk_tl_ticket\` FOREIGN KEY (\`ticket_id\`) REFERENCES \`tickets\` (\`id\`),
+  CONSTRAINT \`fk_tl_label\`  FOREIGN KEY (\`label_id\`)  REFERENCES \`labels\`  (\`id\`)
+);
+
+CREATE TABLE \`comments\` (
+  \`id\`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  \`ticket_id\`  INT UNSIGNED NOT NULL,
+  \`author_id\`  INT UNSIGNED NOT NULL,
+  \`body\`       TEXT NOT NULL,
+  \`created_at\` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (\`id\`),
+  CONSTRAINT \`fk_comment_ticket\` FOREIGN KEY (\`ticket_id\`) REFERENCES \`tickets\` (\`id\`),
+  CONSTRAINT \`fk_comment_author\` FOREIGN KEY (\`author_id\`) REFERENCES \`members\` (\`id\`)
+);`,
+  },
+  {
+    id: 'library',
+    name: 'Library catalogue (SQLite)',
+    dialect: 'SQLite',
+    sql: `-- SQLite: AUTOINCREMENT, INTEGER PRIMARY KEY, DATE columns.
+-- Books / authors / members / loans schema with M2M authorship and a
+-- copies layer (the same title can have many physical copies on the
+-- shelf — only those are loanable).
+
+CREATE TABLE authors (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  full_name  TEXT NOT NULL,
+  born       INTEGER,                        -- nullable: birth year unknown
+  died       INTEGER                         -- nullable: still living
+);
+
+CREATE TABLE books (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  isbn         TEXT NOT NULL UNIQUE,
+  title        TEXT NOT NULL,
+  published    INTEGER NOT NULL,
+  language     TEXT NOT NULL DEFAULT 'en'
+);
+
+CREATE TABLE book_authors (   -- M2M: a book may have multiple authors
+  book_id    INTEGER NOT NULL REFERENCES books(id),
+  author_id  INTEGER NOT NULL REFERENCES authors(id),
+  ordinal    INTEGER NOT NULL DEFAULT 1,     -- credit order for the cover
+  PRIMARY KEY (book_id, author_id)
+);
+
+CREATE TABLE copies (   -- one row per physical copy on the shelf
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  book_id     INTEGER NOT NULL REFERENCES books(id),
+  condition   TEXT NOT NULL DEFAULT 'good',   -- new|good|worn|damaged
+  shelf       TEXT
+);
+
+CREATE TABLE members (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  card_no       TEXT NOT NULL UNIQUE,
+  full_name     TEXT NOT NULL,
+  joined        DATE NOT NULL,
+  active        INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE loans (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  copy_id     INTEGER NOT NULL REFERENCES copies(id),
+  member_id   INTEGER NOT NULL REFERENCES members(id),
+  borrowed_on DATE NOT NULL,
+  due_on      DATE NOT NULL,
+  returned_on DATE                            -- nullable: still on loan
+);`,
+  },
+  {
+    id: 'banking',
+    name: 'Banking ledger',
+    dialect: 'PostgreSQL',
+    sql: `-- Double-entry accounting. Every economic event becomes ONE
+-- journal_entry with TWO+ entry_lines whose debits and credits sum to
+-- zero. Money lives as INTEGER cents (never float). The shape behind
+-- Stripe/Wise/Mercury.
+
+CREATE TABLE customers (
+  id          SERIAL PRIMARY KEY,
+  full_name   VARCHAR(120) NOT NULL,
+  email       VARCHAR(255) NOT NULL UNIQUE,
+  kyc_status  VARCHAR(20)  NOT NULL DEFAULT 'pending',  -- pending|verified|rejected
+  created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+
+CREATE TABLE accounts (
+  id          SERIAL PRIMARY KEY,
+  customer_id INTEGER REFERENCES customers(id),         -- nullable: internal accounts (clearing, fees)
+  kind        VARCHAR(20) NOT NULL,                     -- asset|liability|equity|revenue|expense
+  name        VARCHAR(120) NOT NULL,
+  currency    CHAR(3)  NOT NULL DEFAULT 'USD',          -- ISO 4217
+  closed_at   TIMESTAMPTZ                               -- nullable: still open
+);
+
+CREATE TABLE journal_entries (
+  id           SERIAL PRIMARY KEY,
+  occurred_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  description  VARCHAR(200) NOT NULL,
+  external_ref VARCHAR(80)                              -- nullable: link to source event, e.g. Stripe charge id
+);
+
+CREATE TABLE entry_lines (   -- the actual debits/credits
+  id                 SERIAL PRIMARY KEY,
+  journal_entry_id   INTEGER NOT NULL REFERENCES journal_entries(id),
+  account_id         INTEGER NOT NULL REFERENCES accounts(id),
+  amount_cents       BIGINT NOT NULL    -- signed; debits positive, credits negative; sum per journal_entry must be 0
+);
+
+CREATE TABLE transfers (   -- higher-level "send money A -> B" wrapper
+  id                  SERIAL PRIMARY KEY,
+  from_account_id     INTEGER NOT NULL REFERENCES accounts(id),
+  to_account_id       INTEGER NOT NULL REFERENCES accounts(id),
+  amount_cents        BIGINT  NOT NULL,
+  journal_entry_id    INTEGER NOT NULL REFERENCES journal_entries(id),
+  status              VARCHAR(20) NOT NULL DEFAULT 'pending'  -- pending|posted|reversed
+);
+
+CREATE TABLE statements (   -- precomputed monthly view per account
+  id            SERIAL PRIMARY KEY,
+  account_id    INTEGER NOT NULL REFERENCES accounts(id),
+  period        CHAR(7)  NOT NULL,                       -- YYYY-MM
+  opening_cents BIGINT NOT NULL,
+  closing_cents BIGINT NOT NULL
+);`,
+  },
 ]
