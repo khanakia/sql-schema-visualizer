@@ -77,7 +77,12 @@ flowchart LR
 Tolerant multi-dialect parser. Handles PostgreSQL, MySQL, SQLite and generic ANSI: backticks, `"quotes"`, `[brackets]`, schema-qualified names, `AUTO_INCREMENT`/`AUTOINCREMENT`, `UNSIGNED`, composite keys, inline + table-level `FOREIGN KEY`, `ALTER TABLE … ADD FOREIGN KEY`, and `--` / `#` / `/* */` comments. Never throws.
 
 ```ts
-interface Schema { tables: Table[]; foreignKeys: ForeignKey[]; warnings: string[] }
+interface Schema {
+  tables: Table[]
+  foreignKeys: ForeignKey[]
+  warnings: string[]
+  groupAnnotations: Record<string, string[]>   // name -> table names (from `-- @group:`)
+}
 interface Table  { name: string; columns: Column[]; comment?: string }
 interface Column {
   name: string; type: string; nullable: boolean
@@ -87,6 +92,19 @@ interface Column {
 }
 interface ForeignKey { fromTable: string; fromColumn: string; toTable: string; toColumn: string }
 ```
+
+#### `-- @group:` annotations
+
+Place a comment immediately above (or on the same line as) a `CREATE TABLE` to declare group membership. A table can belong to multiple groups — comma-separate the names. Multiple `-- @group:` lines stacked above one CREATE accumulate.
+
+```sql
+-- @group: auth, audit
+CREATE TABLE users ( id SERIAL PRIMARY KEY );
+
+CREATE TABLE invoices ( id SERIAL PRIMARY KEY );   -- @group: billing
+```
+
+The map preserves the order each table was first added per group. Group names are trimmed, deduped, and capped at 60 chars (empties dropped). UI consumers (e.g. `@khanakia/sql-schema-react`) surface these as read-only groups alongside any user-managed ones.
 
 ### `layoutGraph(nodes, edges, options?): Map<string, Point>`
 
@@ -105,9 +123,13 @@ layoutGraph(nodes, edges, {
 
 `Promise`-based, native `CompressionStream('deflate-raw')` + base64url — **zero deps, no WASM**, ~2.9× on SQL. Token is URL-fragment safe. `decodeSql` returns `null` for blank/garbage input.
 
+### `encodeGroups({groups, activeGroup}) / decodeGroups(token)`
+
+Optional sibling codec for table-group share data, lives at `&g=` next to `#s=` in the URL fragment. Two-param design (additive) — viewers without group support keep decoding `#s=` as before. Encoder returns `null` for empty-default payloads so the `&g=` param can be omitted. Decoder is tolerant: filters non-string members, dedups, drops dangling `activeGroup`.
+
 ### `samples: Sample[]`
 
-Ready-made commented example schemas (e-commerce / blog / SaaS) for demos and tests.
+Ready-made commented example schemas: e-commerce, blog, SaaS, relationship-notation demo, mini-ERP (groups demo), social network, project management (MySQL), library catalogue (SQLite), banking ledger. Several use `-- @group:` annotations.
 
 ## Supported SQL
 
@@ -117,6 +139,7 @@ Ready-made commented example schemas (e-commerce / blog / SaaS) for demos and te
 | MySQL | backticks, `AUTO_INCREMENT`, `ENGINE=`, `UNSIGNED` |
 | SQLite | `AUTOINCREMENT`, minimal types |
 | ANSI / generic | best-effort; unknown clauses skipped, not fatal |
+| Annotations | `-- @group: name` (or `name1, name2`) above `CREATE TABLE` populates `Schema.groupAnnotations` |
 
 ## Limitations
 

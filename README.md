@@ -4,7 +4,7 @@
 
 > Tried every database schema diagram tool and they're all slow, clunky, or paywalled? This one isn't. Paste DDL, see your schema.
 
-**▶ Live demo: [khanakia.github.io/sql-schema-visualizer](https://khanakia.github.io/sql-schema-visualizer/)**
+**▶ Live demo: [khanakia.com/apps/sql-schema-visualizer/](https://khanakia.com/apps/sql-schema-visualizer/)**
 
 ![SQL Schema Visualizer dark mode — interactive ER diagram of a PostgreSQL e-commerce schema with foreign keys and inline column comments](docs/screenshot-dark.png)
 
@@ -39,12 +39,16 @@ Most SQL schema visualization tools are either paid, require a live database con
 - **SQL comments preserved** — table- and column-level `--` / `#` comments are captured and shown inline or as hover popovers (toggle: off → inline → hover).
 - **Foreign-key edges** — column-to-column relationship lines with crow's-foot ERD markers (FK side blue with crow's foot; PK side amber with bar + arrowhead; nullable FKs get an extra circle).
 - **Follow-the-FK navigation** — click the `↗` on any FK column or the edge itself to jump to the referenced table; navigation history with `⌥/Alt+←` or `⌘/Ctrl+[` and a visible `← Back` button.
-- **Table groups** — name a subset of tables (e.g. `billing`, `auth`) and click to filter the canvas to just those; group memberships persist locally and travel in the share URL.
-- **Import** — paste DDL or upload a `.sql` file. Built-in sample schemas (e-commerce, blog, SaaS).
+- **Table groups** — name a subset of tables (e.g. `billing`, `auth`) and click to filter the canvas to just those; group memberships persist locally and travel in the share URL. Multi-select tables on the canvas (Shift/⌘-click or drag-rectangle) and right-click to bulk-add the whole selection to a group in one shot.
+- **`-- @group:` SQL annotations** — drop `-- @group: billing, reporting` above a `CREATE TABLE` and the visualizer auto-creates a read-only group from the SQL (a table can belong to multiple groups). Surfaces with a 📌 SQL badge in the Groups sidebar tab.
+- **Multi-select & right-click menu** — Shift/⌘-click to multi-select; right-click any selected table for a `Groups ▸` submenu (toggle membership, "+ New group from N tables…").
+- **Searchable help modal** — `?` opens an inline help modal that indexes every feature (try "multi", "fk", "filter", "backup", "annotation").
+- **Backup / restore** — `⤓ Export backup` downloads a JSON snapshot of SQL + groups + preferences; `⤴ Import backup` restores it after a confirm. Versioned format; tolerant decoder.
+- **Import** — paste DDL or upload a `.sql` file. Built-in sample schemas: e-commerce, blog, SaaS, relationship-notation demo, mini-ERP (groups demo), social network, project management (MySQL), library catalogue (SQLite), banking ledger.
 - **Export** — one-click PNG of the full diagram.
-- **Share** — whole schema compressed into a URL fragment (deflate-raw, ~2.9×); 100% client-side, no server.
+- **Share** — whole schema compressed into a URL fragment (deflate-raw, ~2.9×); groups + active group travel alongside in an additive `&g=` fragment. 100% client-side, no server.
 - **Dark / light UI**, keyboard-friendly, **pluggable storage** (localStorage by default).
-- **Use it as a library** — framework-agnostic core + composable React components (see [Packages](#packages)).
+- **Use it as a library** — framework-agnostic core + composable React components (see [Packages](#packages)). Every UI piece is a named exported primitive: `<HelpButton>`, `<HelpModal>`, `<GroupsPanel>`, `<GroupsContextMenu>`, `<ActiveGroupPill>`, `<BackButton>`, `<ErdMarkers>`, `<ExportBackupButton>`, `<ImportBackupButton>`, and more.
 
 ## Packages
 

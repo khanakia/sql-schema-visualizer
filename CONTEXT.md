@@ -83,7 +83,32 @@ Consequence: a wrapped comment block whose continuation lands on the line *after
 
 ## State (`store.ts`)
 
-Single Zustand store. Persisted to `localStorage`: `dbviz.sql` (last SQL), `dbviz.comments` (`off` | `inline` | `hover`, with legacy `0`/`1` migration). `search`, `focus`, `direction` are session-only.
+Single Zustand store. Persisted to `localStorage`: `dbviz.sql` (last SQL), `dbviz.comments` (`off` | `inline` | `hover`, with legacy `0`/`1` migration), `dbviz.theme`, `dbviz.groups.v1` (versioned: `{groups, activeGroup}`). `search`, `focus`, `direction`, `history` (FK back-stack) are session-only.
+
+## FK navigation (`Canvas.tsx` + `store.ts`)
+
+- Click the `↗` glyph on any FK column → `focusTable(targetTable, targetColumn)` pushes the current focus onto a 50-entry `history` stack and animates `setCenter` on the target.
+- Click the relationship edge → ping-pongs between source and target.
+- `back()` action pops the stack; bound to the toolbar `← Back` button and the `⌥/Alt + ←` / `⌘/Ctrl + [` keyboard shortcuts (capture-phase listener so React Flow can't intercept first). Backspace deliberately untouched — that's React Flow's "delete selected node" default.
+
+## Table groups (`store.ts` + `Canvas.tsx` + `GroupsPanel`)
+
+- Two sources, same UI: user-managed `groups` (CRUD via store actions, persisted) and `schema.groupAnnotations` (read-only, derived from `-- @group: name` line comments above each `CREATE TABLE`; a table can be in multiple groups).
+- `computeVisibleSet(schema, groups, activeGroup)` returns the filtered set; `edgeIsVisible(set, src, tgt)` is the matching edge predicate. Cross-boundary FK edges drop while filtered. Both helpers live in `packages/react/src/groups.ts` and are exported for custom canvases.
+- Right-click context menu (`GroupsContextMenu`) acts on the single right-clicked node — unless that node is part of a multi-selection (Shift- / ⌘-clicked, or rubber-band selected), in which case the menu's add/remove buttons act on the **whole selection** with bulk semantics ("Add 3 (1 already in)").
+- Auto-clear: if a group is the active filter and its members all vanish from the SQL on reparse, `activeGroup` resets to null to avoid a blank canvas.
+
+## Share URL codec (`packages/core/src/share.ts`)
+
+`#s=<token>` carries the compressed SQL. `&g=<token>` (optional, additive) carries `{g: groups, a: activeGroup}` JSON via the same deflate-raw + base64url pipeline. Pre-groups viewers ignore `&g=`; new viewers without groups omit it. See `buildShareUrl(sql, {groups, activeGroup})` in the React package.
+
+## Backup (`packages/react/src/backup.ts`)
+
+JSON snapshot of `{sql, groups, activeGroup, commentMode, theme}` with a `BACKUP_VERSION` field. `validateBackup` tolerates garbage and rejects unknown majors with a clear error. `applyBackup` drives store actions in safe order (SQL → wipe-then-rebuild groups → activeGroup → preference toggles). `<ExportBackupButton>` / `<ImportBackupButton>` are thin React wrappers; the helpers are usable headless.
+
+## Help (`packages/react/src/help.ts` + `Help.tsx`)
+
+`defaultHelpEntries` is a typed `HelpEntry[]` (id / section / title / body / optional shortcut chip + keywords). `matchHelpEntry` is a token-substring match across title + body + keywords. `<HelpButton>` (and global `?` shortcut) opens `<HelpModal>`, which groups results by section; both components accept an `entries` prop so consumers can extend (`[...defaultHelpEntries, ...mine]`) or fully replace.
 
 ## Known limitations
 

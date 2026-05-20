@@ -1,6 +1,6 @@
 # Sample Schemas
 
-Copy any block below and paste it into the **Paste / Import SQL** tab in [SQL Schema Visualizer](https://khanakia.github.io/sql-schema-visualizer/). Each one exercises a different parser / layout edge case.
+Copy any block below and paste it into the **⊕ Paste / Import SQL** tab in [SQL Schema Visualizer](https://khanakia.com/apps/sql-schema-visualizer/). Each one exercises a different parser / layout edge case. The built-in **⊞ Samples ▾** menu in the toolbar covers a different set: e-commerce, blog, SaaS, **relationship-notation demo** (every crow's-foot marker variant), **mini-ERP (groups demo)** with `-- @group:` annotations, **social network**, **project management** (MySQL backticks + ENUM + composite PKs), **library catalogue** (SQLite), and **banking ledger** (double-entry).
 
 ---
 
@@ -132,6 +132,33 @@ CREATE TABLE only_table (
 );
 ```
 
+## 12. `-- @group:` annotations (auto-create groups from SQL)
+
+Open the **Groups** tab in the sidebar after pasting — three derived groups appear with a 📌 + `SQL` badge. Click 👁 on any of them to filter the canvas to its members. Note `users` belongs to TWO groups (auth + content) via the comma-syntax.
+
+```sql
+-- @group: auth, content
+CREATE TABLE users (id int PRIMARY KEY, email varchar(255));
+
+-- @group: auth
+CREATE TABLE sessions (id int PRIMARY KEY, user_id int REFERENCES users(id));
+
+-- @group: auth
+CREATE TABLE api_keys (id int PRIMARY KEY, user_id int REFERENCES users(id));
+
+-- @group: content
+CREATE TABLE posts (id int PRIMARY KEY, author_id int REFERENCES users(id));
+
+-- @group: content
+CREATE TABLE comments (id int PRIMARY KEY, post_id int REFERENCES posts(id));
+
+-- @group: billing
+CREATE TABLE customers (id int PRIMARY KEY, user_id int REFERENCES users(id));
+
+-- @group: billing
+CREATE TABLE invoices (id int PRIMARY KEY, customer_id int REFERENCES customers(id));
+```
+
 ---
 
-These same snippets back the parser unit tests in `src/lib/snippets.ts` — if you find SQL that renders wrong, add it there and open an issue or PR.
+These same snippets back the parser unit tests in `packages/core/src/snippets.ts` — if you find SQL that renders wrong, add it there and open an issue or PR.
