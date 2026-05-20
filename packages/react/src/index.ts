@@ -41,6 +41,27 @@ export {
 export { GroupsContextMenu } from './components/GroupsContextMenu'
 export type { GroupsContextMenuProps } from './components/GroupsContextMenu'
 
+// Backup / restore — JSON snapshot of SQL + groups + preferences.
+// The components are thin wrappers around the pure helpers below;
+// consumers wanting custom UI should reach for the helpers directly.
+export {
+  ExportBackupButton,
+  ImportBackupButton,
+} from './components/Backup'
+export type {
+  ExportBackupButtonProps,
+  ImportBackupButtonProps,
+} from './components/Backup'
+export {
+  BACKUP_VERSION,
+  BACKUP_KIND,
+  buildBackup,
+  validateBackup,
+  applyBackup,
+  downloadBackup,
+} from './backup'
+export type { BackupPayload, BackupApplyActions } from './backup'
+
 // atomic toolbar primitives — build your own toolbar
 export {
   ToolbarButton,

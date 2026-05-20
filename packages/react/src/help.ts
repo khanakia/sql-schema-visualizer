@@ -148,6 +148,22 @@ export const defaultHelpEntries: HelpEntry[] = [
     keywords: ['sample', 'demo', 'example', 'template'],
   },
 
+  // ── Backup ──────────────────────────────────────────────────────
+  {
+    id: 'backup-export',
+    section: 'Backup',
+    title: 'Export a full backup',
+    body: 'In the "⊕ Paste / Import SQL" tab, click "⤓ Export backup" to download a JSON file containing your SQL, all groups, the active group, comment mode, and theme. Drop it in version control for safekeeping, or to hand-off to a teammate.',
+    keywords: ['export', 'backup', 'download', 'save', 'snapshot', 'json'],
+  },
+  {
+    id: 'backup-import',
+    section: 'Backup',
+    title: 'Restore from a backup',
+    body: 'Same tab, "⤴ Import backup" prompts for a backup JSON file and replaces your current SQL + groups + preferences with its contents. You\'ll be asked to confirm before anything is overwritten.',
+    keywords: ['import', 'restore', 'load', 'backup'],
+  },
+
   // ── Output + sharing ────────────────────────────────────────────
   {
     id: 'share-url',

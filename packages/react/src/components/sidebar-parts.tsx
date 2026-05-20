@@ -4,6 +4,7 @@
 
 import { useMemo, useState } from 'react'
 import { useStore } from '../store'
+import { ExportBackupButton, ImportBackupButton } from './Backup'
 
 /** Search input — filters the store query; Enter jumps to the first hit. */
 export function SchemaSearch({
@@ -142,6 +143,15 @@ export function SqlImport({ className = '' }: { className?: string }) {
         placeholder="…or paste CREATE TABLE statements here — the diagram updates as you type."
         className="flex-1 resize-none bg-[var(--bg)] p-3 font-mono text-[11px] leading-relaxed text-[var(--text)] outline-none"
       />
+      {/* Full-state backup — wider than .sql import: also captures
+          groups + active group + comment mode + theme as JSON. */}
+      <div className="flex items-center gap-2 border-t border-[var(--border-soft)] p-3">
+        <span className="text-[10px] uppercase tracking-wide text-[var(--text-soft)]">
+          Backup
+        </span>
+        <ExportBackupButton className="flex-1" />
+        <ImportBackupButton className="flex-1" />
+      </div>
     </div>
   )
 }
