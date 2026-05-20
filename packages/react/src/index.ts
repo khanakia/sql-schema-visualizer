@@ -35,6 +35,7 @@ export {
   ToolbarButton,
   ToolbarDivider,
   SamplesMenu,
+  BackButton,
   LayoutDirectionButton,
   CollapseAllButton,
   CommentModeButton,

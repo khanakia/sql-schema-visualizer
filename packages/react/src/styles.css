@@ -71,6 +71,29 @@ body,
   stroke: var(--accent);
   stroke-width: 2.5;
 }
+/* Crow's-foot ERD marker glyphs (defined in Canvas.tsx <defs>).
+   Color-coded by role to match the in-table PK ◆ / FK ↗ legend, so a
+   user already knows blue = FK side, amber = PK side without a
+   separate key. CSS class instead of SVG `context-stroke` (which needs
+   Chrome 121+/Safari 16+ and fails silently to invisible). */
+.erd-marker {
+  stroke-width: 1.8;
+  fill: none;
+}
+/* FK / "many" side — sky-blue, matches the ↗ glyph next to FK columns. */
+.erd-marker-fk {
+  stroke: #38bdf8;
+}
+/* PK / "one" side — amber, matches the ◆ glyph next to PK columns. */
+.erd-marker-pk {
+  stroke: #f59e0b;
+}
+/* Arrowhead body is filled, not stroked. Same amber as the bar so the
+   "this line points TO the parent table" cue reads as one unit. */
+.erd-arrow-fill {
+  fill: #f59e0b;
+  stroke: none;
+}
 .react-flow__handle {
   opacity: 0;
   border: none;

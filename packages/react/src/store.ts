@@ -2,6 +2,10 @@ import { create } from 'zustand'
 import { parseSchema, encodeSql, samples, type Schema } from '@khanakia/sql-schema-core'
 import { storage } from './storage'
 
+// Cap on the FK-navigation history stack. Bounded so a long browsing
+// session can't grow memory unbounded; 50 is plenty for human "back" UX.
+const HISTORY_MAX = 50
+
 const K_SQL = 'dbviz.sql'
 const K_COMMENTS = 'dbviz.comments'
 const K_THEME = 'dbviz.theme'
@@ -54,7 +58,23 @@ interface State {
   loadSample: (id: string) => void
   setSearch: (q: string) => void
   setDirection: (d: 'LR' | 'TB') => void
-  focusTable: (table: string, column?: string) => void
+  /**
+   * Navigation history stack. Each entry is a previous `focus` that we
+   * popped off when the user navigated forward (clicked an FK, picked a
+   * table from the sidebar, etc.). `back()` pops the top and restores
+   * that focus. Capped at HISTORY_MAX so a long session can't grow it
+   * unbounded. Does NOT include the current focus — only previous ones.
+   */
+  history: Array<{ table: string; column: string | null }>
+  /**
+   * Navigate to a table (and optionally a specific column). Pushes the
+   * CURRENT focus onto `history` first so `back()` can return there.
+   * Pass `push: false` to navigate without recording history (used by
+   * `back()` itself to avoid history loops).
+   */
+  focusTable: (table: string, column?: string, opts?: { push?: boolean }) => void
+  /** Pop the last history entry and focus it. No-op if history empty. */
+  back: () => void
   /** Re-read persisted state from the (possibly just-swapped) adapter. */
   hydrate: () => void
 }
@@ -118,10 +138,40 @@ export const useStore = create<State>((set) => ({
   },
   setSearch: (search) => set({ search }),
   setDirection: (direction) => set({ direction }),
-  focusTable: (table, column) =>
-    set((s) => ({
-      focus: { table, column, nonce: (s.focus?.nonce ?? 0) + 1 },
-    })),
+  history: [],
+  focusTable: (table, column, opts) =>
+    set((s) => {
+      // Don't push a redundant entry if we're already focused on the
+      // same (table, column) — common when the FK glyph is double-clicked
+      // or the same edge re-fired.
+      const sameAsCurrent =
+        s.focus?.table === table && (s.focus.column ?? null) === (column ?? null)
+      const push = opts?.push !== false && !sameAsCurrent && s.focus
+      const nextHistory =
+        push && s.focus
+          ? [
+              ...s.history,
+              { table: s.focus.table, column: s.focus.column ?? null },
+            ].slice(-HISTORY_MAX)
+          : s.history
+      return {
+        history: nextHistory,
+        focus: { table, column, nonce: (s.focus?.nonce ?? 0) + 1 },
+      }
+    }),
+  back: () =>
+    set((s) => {
+      if (s.history.length === 0) return s
+      const prev = s.history[s.history.length - 1]
+      return {
+        history: s.history.slice(0, -1),
+        focus: {
+          table: prev.table,
+          column: prev.column ?? undefined,
+          nonce: (s.focus?.nonce ?? 0) + 1,
+        },
+      }
+    }),
   hydrate: () =>
     set(() => {
       const th = readTheme()

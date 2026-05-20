@@ -11,6 +11,7 @@ export function SelfLoopEdge({
   sourceX,
   sourceY,
   targetY,
+  markerStart,
   markerEnd,
   style,
 }: EdgeProps) {
@@ -19,5 +20,16 @@ export function SelfLoopEdge({
   const path = `M ${sourceX} ${sourceY} C ${sourceX + reach} ${sourceY}, ${
     sourceX + reach
   } ${targetY}, ${sourceX} ${targetY}`
-  return <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} />
+  // Forward BOTH markers so self-referential FKs (e.g. employees.manager_id
+  // -> employees.id) still show the crow's-foot/one ERD notation at both
+  // ends — same convention as cross-table edges.
+  return (
+    <BaseEdge
+      id={id}
+      path={path}
+      markerStart={markerStart}
+      markerEnd={markerEnd}
+      style={style}
+    />
+  )
 }

@@ -134,9 +134,26 @@ export function TableNode({ data, selected }: NodeProps) {
                       ◆
                     </span>
                   ) : c.fk ? (
-                    <span title="Foreign key" className="text-sky-400">
+                    // Foreign-key navigator: clicking the ↗ glyph jumps
+                    // to the referenced table+column. Pushes the current
+                    // focus onto history so Backspace / Back returns.
+                    // stopPropagation + onMouseDown stop React Flow from
+                    // selecting/dragging the node when the glyph is
+                    // clicked.
+                    <button
+                      type="button"
+                      title={`Follow FK to ${c.fk.table}.${c.fk.column} (⌥/Alt + ← to go back)`}
+                      className="cursor-pointer text-sky-400 hover:text-sky-200"
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        useStore
+                          .getState()
+                          .focusTable(c.fk!.table, c.fk!.column)
+                      }}
+                    >
                       ↗
-                    </span>
+                    </button>
                   ) : null}
                 </span>
                 <span

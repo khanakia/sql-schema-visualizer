@@ -4,6 +4,7 @@
 import {
   SamplesMenu,
   ToolbarDivider,
+  BackButton,
   LayoutDirectionButton,
   CollapseAllButton,
   CommentModeButton,
@@ -29,6 +30,7 @@ export function Toolbar({ onFit, onExport, className }: SchemaToolbarProps) {
     >
       <SamplesMenu />
       <ToolbarDivider />
+      <BackButton />
       <LayoutDirectionButton />
       <CollapseAllButton />
       <CommentModeButton />

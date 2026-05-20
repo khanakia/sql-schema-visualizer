@@ -135,6 +135,28 @@ export function CommentModeButton() {
   )
 }
 
+// Pops the FK-navigation history (same as Backspace). Disabled when
+// the stack is empty so users can see at a glance whether there's
+// anywhere to go back to.
+export function BackButton() {
+  const back = useStore((s) => s.back)
+  const depth = useStore((s) => s.history.length)
+  return (
+    <ToolbarButton
+      title={
+        depth > 0
+          ? `Back to previous table (${depth} step${depth === 1 ? '' : 's'} — ⌥/Alt + ←)`
+          : 'No previous table to go back to'
+      }
+      onClick={back}
+      disabled={depth === 0}
+      className={depth === 0 ? 'opacity-40' : ''}
+    >
+      ← Back
+    </ToolbarButton>
+  )
+}
+
 export function ResetLayoutButton() {
   const resetLayout = useStore((s) => s.resetLayout)
   return (

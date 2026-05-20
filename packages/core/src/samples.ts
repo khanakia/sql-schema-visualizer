@@ -132,4 +132,68 @@ CREATE TABLE tickets (
   priority    INTEGER NOT NULL DEFAULT 2   -- 1 = high, 2 = normal, 3 = low
 );`,
   },
+  {
+    id: 'notation',
+    name: 'Relationship notation demo',
+    dialect: 'PostgreSQL',
+    sql: `-- One small schema that exercises every crow's-foot marker variant
+-- so you can read off the diagram what each line means.
+--   Crow's foot end  = FK ("many")
+--   Single bar end   = referenced PK ("exactly one")
+--   Circle in front of the crow's foot = nullable FK ("zero or many")
+
+CREATE TABLE companies (   -- parent of departments + offices
+  id            SERIAL PRIMARY KEY,
+  name          VARCHAR(120) NOT NULL,
+  hq_office_id  INTEGER   -- ↓ two-way: company -> office, OPTIONAL (see ALTER below)
+);
+
+CREATE TABLE departments (   -- mandatory FK: NOT NULL -> "one or many"
+  id          SERIAL PRIMARY KEY,
+  name        VARCHAR(80) NOT NULL,
+  company_id  INTEGER NOT NULL REFERENCES companies(id)   -- crow's foot + bar (no circle)
+);
+
+CREATE TABLE employees (   -- one row covers three variants at once
+  id             SERIAL PRIMARY KEY,
+  full_name      VARCHAR(120) NOT NULL,
+  department_id  INTEGER NOT NULL REFERENCES departments(id),   -- mandatory: foot + bar
+  manager_id     INTEGER REFERENCES employees(id),              -- SELF-REF + nullable: circle + foot + bar
+  mentor_id     INTEGER REFERENCES employees(id)                -- second self-ref, also optional
+);
+
+CREATE TABLE offices (   -- forms the OTHER direction of the two-way with companies
+  id          SERIAL PRIMARY KEY,
+  city        VARCHAR(80) NOT NULL,
+  company_id  INTEGER NOT NULL REFERENCES companies(id)   -- office -> company, mandatory
+);
+
+-- Second leg of the two-way: company -> office (optional; HQ may be unset).
+-- Together with offices.company_id above this draws TWO separate edges
+-- between companies and offices, each with its own arrow direction.
+ALTER TABLE companies
+  ADD CONSTRAINT fk_company_hq FOREIGN KEY (hq_office_id) REFERENCES offices(id);
+
+-- A 4-table chain so you can FK-hop and try the Back button:
+--   continents -> countries -> regions -> cities
+CREATE TABLE continents (
+  id    SERIAL PRIMARY KEY,
+  name  VARCHAR(40) NOT NULL
+);
+CREATE TABLE countries (
+  id            SERIAL PRIMARY KEY,
+  name          VARCHAR(80) NOT NULL,
+  continent_id  INTEGER NOT NULL REFERENCES continents(id)
+);
+CREATE TABLE regions (
+  id          SERIAL PRIMARY KEY,
+  name        VARCHAR(80) NOT NULL,
+  country_id  INTEGER NOT NULL REFERENCES countries(id)
+);
+CREATE TABLE cities (
+  id         SERIAL PRIMARY KEY,
+  name       VARCHAR(80) NOT NULL,
+  region_id  INTEGER NOT NULL REFERENCES regions(id)
+);`,
+  },
 ]

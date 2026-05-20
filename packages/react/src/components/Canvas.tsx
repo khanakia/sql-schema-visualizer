@@ -90,18 +90,47 @@ function Flow(props: SchemaCanvasProps) {
         matched: false,
       },
     }))
+    // For crow's-foot markers we need the FK column's nullability:
+    // NOT NULL FK -> exactly "one or many" (mandatory many); nullable
+    // FK -> "zero or many" (optional many, drawn with the extra circle).
+    // Build a quick name -> column lookup so we don't scan tables per
+    // edge.
+    const colByTable = new Map(
+      schema.tables.map((t) => [
+        t.name,
+        new Map(t.columns.map((c) => [c.name, c])),
+      ]),
+    )
     const baseEdges: Edge[] = schema.foreignKeys
       .filter((fk) => known.has(fk.fromTable) && known.has(fk.toTable))
-      .map((fk, i) => ({
-        id: `e${i}-${fk.fromTable}-${fk.toTable}`,
-        source: fk.fromTable,
-        target: fk.toTable,
-        sourceHandle: fk.fromColumn,
-        targetHandle: fk.toColumn,
-        type: fk.fromTable === fk.toTable ? 'selfloop' : 'smoothstep',
-        animated: false,
-        data: { from: fk.fromTable, to: fk.toTable },
-      }))
+      .map((fk, i) => {
+        const fkCol = colByTable.get(fk.fromTable)?.get(fk.fromColumn)
+        const optional = fkCol?.nullable ?? false
+        return {
+          id: `e${i}-${fk.fromTable}-${fk.toTable}`,
+          source: fk.fromTable,
+          target: fk.toTable,
+          sourceHandle: fk.fromColumn,
+          targetHandle: fk.toColumn,
+          type: fk.fromTable === fk.toTable ? 'selfloop' : 'smoothstep',
+          animated: false,
+          // Crow's-foot ERD notation:
+          //   source = FK side ("many"); marker is crow's foot, with an
+          //     extra circle when the FK is nullable ("zero or many").
+          //   target = referenced PK side ("one"); marker is a single
+          //     perpendicular bar.
+          // Markers themselves are defined in the <svg defs> rendered
+          // inside the canvas wrapper and reference context-stroke so
+          // they inherit the edge's color in light/dark/hover states.
+          // React Flow wraps the given marker id in `url(#…)` itself, so
+          // pass the BARE id here — not `url(#erd-…)` (that double-wraps
+          // into `url('#url(#erd-…)')`, which is invalid and renders
+          // nothing).
+          markerStart: optional ? 'erd-many-optional' : 'erd-many-mandatory',
+          markerEnd: 'erd-one',
+          data: { from: fk.fromTable, to: fk.toTable },
+        }
+      })
     return { baseNodes, baseEdges }
   }, [schema])
 
@@ -227,6 +256,40 @@ function Flow(props: SchemaCanvasProps) {
     )
   }, [q, setNodes, setEdges, getNode])
 
+  // Keyboard shortcuts for "navigation back". Two combos, either works:
+  //   - Alt/Option + ←   (browser-back convention; Cmd+← also fires here)
+  //   - Cmd/Ctrl + [     (Safari / VS Code "Navigate Back")
+  // Deliberately NOT plain Backspace — React Flow's default
+  // `deleteKeyCode` is Backspace/Delete and on macOS the Delete key IS
+  // Backspace, so binding Backspace to back-nav would clash with the
+  // "delete selected table" behavior we want to keep working.
+  // Bound on window in CAPTURE phase so React Flow's own listeners
+  // can't intercept first. Suppressed inside text inputs so it doesn't
+  // hijack caret movement / word-jump shortcuts.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const isBracketBack = e.key === '[' && (e.metaKey || e.ctrlKey)
+      const isArrowBack =
+        e.key === 'ArrowLeft' && (e.altKey || e.metaKey)
+      if (!isBracketBack && !isArrowBack) return
+      const t = e.target as HTMLElement | null
+      if (
+        t &&
+        (t.tagName === 'INPUT' ||
+          t.tagName === 'TEXTAREA' ||
+          t.isContentEditable)
+      )
+        return
+      const { history, back } = useStore.getState()
+      if (history.length === 0) return
+      e.preventDefault()
+      e.stopPropagation()
+      back()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [])
+
   // click-to-navigate: center + zoom on the focused table, flag its column
   useEffect(() => {
     if (!focus) return
@@ -296,12 +359,113 @@ function Flow(props: SchemaCanvasProps) {
       className={`h-full w-full${className ? ` ${className}` : ''}`}
       style={style}
     >
+      {/*
+        Crow's-foot ERD marker definitions, rendered once per canvas.
+        Hidden zero-sized SVG so the markers exist in the DOM and can be
+        referenced by id from edge markerStart/markerEnd. `context-stroke`
+        makes them inherit the referencing edge's stroke color, so they
+        automatically follow theme (light/dark via --edge) AND hover/
+        selected state (--accent) without needing parallel marker sets.
+        Conventions:
+          erd-one             single bar  — "exactly one" (target / PK)
+          erd-many-mandatory  crow's foot — "one or many"    (NOT NULL FK)
+          erd-many-optional   circle + foot — "zero or many" (nullable FK)
+      */}
+      <svg
+        aria-hidden="true"
+        style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}
+      >
+        <defs>
+          {/* PK / "one" end: perpendicular bar PLUS a filled triangle
+              arrowhead pointing along the line. Bar = traditional ER
+              notation; arrowhead = obvious directional cue (the line
+              points TO the parent table). Amber matches the in-table
+              PK ◆ glyph. */}
+          <marker
+            id="erd-one"
+            viewBox="0 0 22 20"
+            markerWidth="11"
+            markerHeight="10"
+            refX="20"
+            refY="10"
+            orient="auto"
+            markerUnits="userSpaceOnUse"
+          >
+            <line
+              x1="6"
+              y1="2"
+              x2="6"
+              y2="18"
+              className="erd-marker erd-marker-pk"
+            />
+            <path
+              d="M 10 4 L 20 10 L 10 16 Z"
+              className="erd-arrow-fill"
+            />
+          </marker>
+          {/* FK / "many" end, NOT NULL: classic crow's foot in sky-blue,
+              matches the in-table FK ↗ glyph. */}
+          <marker
+            id="erd-many-mandatory"
+            viewBox="0 0 24 24"
+            markerWidth="12"
+            markerHeight="12"
+            refX="2"
+            refY="12"
+            orient="auto-start-reverse"
+            markerUnits="userSpaceOnUse"
+          >
+            <path
+              d="M 2 12 L 22 2 M 2 12 L 22 12 M 2 12 L 22 22"
+              className="erd-marker erd-marker-fk"
+            />
+          </marker>
+          {/* FK / "many" end, nullable: a small circle ("zero or") in
+              front of the crow's foot. Same sky-blue. */}
+          <marker
+            id="erd-many-optional"
+            viewBox="0 0 32 24"
+            markerWidth="16"
+            markerHeight="12"
+            refX="2"
+            refY="12"
+            orient="auto-start-reverse"
+            markerUnits="userSpaceOnUse"
+          >
+            <circle
+              cx="9"
+              cy="12"
+              r="3.5"
+              className="erd-marker erd-marker-fk"
+            />
+            <path
+              d="M 14 12 L 30 2 M 14 12 L 30 12 M 14 12 L 30 22"
+              className="erd-marker erd-marker-fk"
+            />
+          </marker>
+        </defs>
+      </svg>
       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={(_, n) => onTableClick?.(n.id)}
+        // Click an FK edge -> jump to the OPPOSITE end of where we're
+        // currently focused (ping-pong). With no current focus, jump
+        // to the target (the referenced PK side) — the natural "follow"
+        // direction. stopPropagation prevents the pane click from
+        // clearing selection mid-animation.
+        onEdgeClick={(e, edge) => {
+          e.stopPropagation()
+          const { focus, focusTable } = useStore.getState()
+          const onTarget = focus?.table === edge.target
+          const next = onTarget ? edge.source : edge.target
+          const nextCol = onTarget
+            ? edge.sourceHandle ?? undefined
+            : edge.targetHandle ?? undefined
+          focusTable(next, nextCol)
+        }}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         minZoom={minZoom}
