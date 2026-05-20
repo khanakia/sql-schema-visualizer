@@ -118,6 +118,13 @@ export const defaultHelpEntries: HelpEntry[] = [
 
   // ── Reading the diagram ─────────────────────────────────────────
   {
+    id: 'unique-glyphs',
+    section: 'Reading the diagram',
+    title: 'UNIQUE columns and composite UNIQUE constraints',
+    body: 'Single-column UNIQUE columns get a green "U" badge next to the name (PK rows skip the badge — primary keys are implicitly unique). Multi-column UNIQUE constraints (e.g. UNIQUE (team_id, shop_id, code)) render as a footer line on the table card showing the whole tuple. Hovering the "U" badge on a row that\'s part of a composite tells you which other columns it\'s grouped with.',
+    keywords: ['unique', 'uq', 'composite', 'constraint', 'multi column'],
+  },
+  {
     id: 'erd-markers',
     section: 'Reading the diagram',
     title: 'What the line ends mean (crow\'s-foot ERD)',

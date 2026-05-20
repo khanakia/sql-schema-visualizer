@@ -107,6 +107,7 @@ function Flow(props: SchemaCanvasProps) {
         label: t.name,
         columns: t.columns,
         tableComment: t.comment,
+        compositeUniques: t.compositeUniques,
         dim: false,
         matched: false,
       },

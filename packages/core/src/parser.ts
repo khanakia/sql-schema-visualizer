@@ -18,6 +18,16 @@ export interface Table {
   name: string
   columns: Column[]
   comment?: string
+  /**
+   * Composite (multi-column) UNIQUE constraints declared on the table,
+   * preserving each constraint's column tuple as a group. Single-column
+   * inline `UNIQUE` lives on the column itself via `Column.unique` —
+   * this field is ONLY the multi-column case so consumers can render
+   * "these columns are unique together". Omitted when none present.
+   *   `UNIQUE (a, b, c)`            -> [['a','b','c']]
+   *   `UNIQUE (a, b), UNIQUE (c)`   -> [['a','b']]  (single (c) -> col.unique)
+   */
+  compositeUniques?: string[][]
 }
 
 export interface ForeignKey {
@@ -362,6 +372,13 @@ export function parseSchema(input: string): Schema {
             table.columns.forEach((c) => {
               if (uqCols.includes(c.name)) c.unique = true
             })
+            // Preserve the COMPOSITE structure so the UI can say
+            // "these columns are unique together" — flat per-column
+            // booleans lose that grouping. Skip 1-tuples; those are
+            // already covered by `Column.unique`.
+            if (uqCols.length >= 2) {
+              ;(table.compositeUniques ??= []).push(uqCols)
+            }
             continue
           }
           // CHECK / INDEX / KEY etc -> ignore

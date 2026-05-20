@@ -6,6 +6,8 @@ export interface TableNodeData {
   label: string
   columns: Column[]
   tableComment?: string
+  /** Multi-column UNIQUE constraints, rendered as a footer per group. */
+  compositeUniques?: string[][]
   dim: boolean
   matched: boolean
   queryCol?: string
@@ -27,6 +29,19 @@ export function TableNode({ data, selected }: NodeProps) {
   const d = data as TableNodeData
   const mode = useStore((s) => s.commentMode)
   const collapsed = useStore((s) => !!s.collapsed[d.label])
+  // Map a column name to the composite-unique tuples it participates
+  // in. Used to label the per-row `U` glyph with its partners.
+  const compositeByCol = (() => {
+    const map = new Map<string, string[][]>()
+    for (const tuple of d.compositeUniques ?? []) {
+      for (const col of tuple) {
+        const arr = map.get(col) ?? []
+        arr.push(tuple)
+        map.set(col, arr)
+      }
+    }
+    return map
+  })()
   const toggleCollapse = useStore((s) => s.toggleCollapse)
   const inline = mode === 'inline' && !collapsed
   const hover = mode === 'hover'
@@ -168,6 +183,23 @@ export function TableNode({ data, selected }: NodeProps) {
                       *
                     </span>
                   )}
+                  {/* UNIQUE glyph — skipped on PK rows since PKs are
+                      implicitly unique. Tooltip lists the partner
+                      columns when this column is part of a composite. */}
+                  {c.unique && !c.pk && (
+                    <span
+                      className="ml-1 inline-block rounded border border-emerald-500/40 px-1 text-[9px] uppercase tracking-wide text-emerald-300"
+                      title={(() => {
+                        const tuples = compositeByCol.get(c.name)
+                        if (!tuples || tuples.length === 0) return 'UNIQUE'
+                        return tuples
+                          .map((t) => `UNIQUE (${t.join(', ')})`)
+                          .join('\n')
+                      })()}
+                    >
+                      U
+                    </span>
+                  )}
                 </span>
                 {hover && c.comment && (
                   <span className="shrink-0 text-[9px] text-purple-400">
@@ -187,6 +219,23 @@ export function TableNode({ data, selected }: NodeProps) {
             </div>
           )
         })}
+        {/* Composite (multi-column) UNIQUE constraints. Shows "these
+            columns are unique together" — the per-row `U` glyph can't
+            convey grouping on its own. One line per constraint. */}
+        {d.compositeUniques && d.compositeUniques.length > 0 && (
+          <div className="border-t border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-1">
+            {d.compositeUniques.map((tuple, i) => (
+              <div
+                key={`uq-${i}`}
+                className="truncate text-[10px] text-emerald-300/90"
+                title={`UNIQUE (${tuple.join(', ')})`}
+              >
+                <span className="mr-1 text-emerald-400/70">U</span>
+                ({tuple.join(', ')})
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       )}
     </div>

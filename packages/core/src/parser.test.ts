@@ -160,6 +160,62 @@ describe('parseSchema — resilience', () => {
   })
 })
 
+describe('composite UNIQUE constraints', () => {
+  it('captures a multi-column UNIQUE as a structured group', () => {
+    const s = parseSchema(`
+CREATE TABLE memberships (
+  id        INT PRIMARY KEY,
+  team_id   INT NOT NULL,
+  shop_id   INT NOT NULL,
+  code      TEXT NOT NULL,
+  UNIQUE (team_id, shop_id, code)
+);
+`)
+    const t = s.tables[0]
+    expect(t.compositeUniques).toEqual([['team_id', 'shop_id', 'code']])
+    // Each participating column is also flagged for inline glyph render.
+    const cols = Object.fromEntries(t.columns.map((c) => [c.name, c.unique]))
+    expect(cols.team_id).toBe(true)
+    expect(cols.shop_id).toBe(true)
+    expect(cols.code).toBe(true)
+    expect(cols.id).toBe(false)
+  })
+
+  it('inline single-column UNIQUE does NOT add a composite entry', () => {
+    const s = parseSchema(`
+CREATE TABLE t (id INT PRIMARY KEY, email TEXT UNIQUE NOT NULL);
+`)
+    expect(s.tables[0].compositeUniques).toBeUndefined()
+    expect(s.tables[0].columns.find((c) => c.name === 'email')?.unique).toBe(true)
+  })
+
+  it('multiple composite UNIQUE blocks on the same table', () => {
+    const s = parseSchema(`
+CREATE TABLE t (
+  a INT, b INT, c INT, d INT,
+  UNIQUE (a, b),
+  UNIQUE (c, d)
+);
+`)
+    expect(s.tables[0].compositeUniques).toEqual([
+      ['a', 'b'],
+      ['c', 'd'],
+    ])
+  })
+
+  it('MySQL `UNIQUE KEY name (cols)` syntax', () => {
+    const s = parseSchema(`
+CREATE TABLE members (
+  id INT PRIMARY KEY,
+  workspace_id INT,
+  email VARCHAR(255),
+  UNIQUE KEY uq_member_ws_email (workspace_id, email)
+);
+`)
+    expect(s.tables[0].compositeUniques).toEqual([['workspace_id', 'email']])
+  })
+})
+
 describe('-- @group: annotations', () => {
   it('captures a single-group annotation on the line above CREATE', () => {
     const s = parseSchema(`
