@@ -30,6 +30,16 @@ export type { SchemaToolbarProps } from './components/Toolbar'
 export { TableNode } from './components/TableNode'
 export type { TableNodeData } from './components/TableNode'
 export { SelfLoopEdge } from './components/SelfLoopEdge'
+// canvas-render primitives — for users composing their own <ReactFlow>
+// instead of using the bundled <SchemaCanvas>.
+export {
+  ErdMarkers,
+  ERD_MARKER_ONE,
+  ERD_MARKER_MANY_MANDATORY,
+  ERD_MARKER_MANY_OPTIONAL,
+} from './components/ErdMarkers'
+export { GroupsContextMenu } from './components/GroupsContextMenu'
+export type { GroupsContextMenuProps } from './components/GroupsContextMenu'
 
 // atomic toolbar primitives — build your own toolbar
 export {
@@ -58,7 +68,16 @@ export { defaultHelpEntries, matchHelpEntry } from './help'
 export type { HelpEntry } from './help'
 
 // store + share helpers
-export { useStore as useSchemaStore, buildShareUrl, SHARE_URL_SOFT_LIMIT } from './store'
+export {
+  useStore as useSchemaStore,
+  useSchemaActions,
+  buildShareUrl,
+  SHARE_URL_SOFT_LIMIT,
+} from './store'
+
+// pure helpers for the groups feature (no React) — for custom UIs
+// and custom canvases.
+export { computeVisibleSet, edgeIsVisible } from './groups'
 
 // pluggable persistence
 export { setStorageAdapter, type StorageAdapter } from './storage'

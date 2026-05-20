@@ -27,6 +27,14 @@ import { layoutGraph, type LayoutOptions } from '@khanakia/sql-schema-core'
 import { TableNode } from './TableNode'
 import { Toolbar } from './Toolbar'
 import { SelfLoopEdge } from './SelfLoopEdge'
+import { ErdMarkers } from './ErdMarkers'
+import {
+  ERD_MARKER_ONE,
+  ERD_MARKER_MANY_MANDATORY,
+  ERD_MARKER_MANY_OPTIONAL,
+} from './ErdMarkers'
+import { GroupsContextMenu } from './GroupsContextMenu'
+import { computeVisibleSet, edgeIsVisible } from '../groups'
 
 const nodeTypes = { table: TableNode }
 const edgeTypes = { selfloop: SelfLoopEdge }
@@ -79,18 +87,12 @@ function Flow(props: SchemaCanvasProps) {
 
   const q = search.trim().toLowerCase()
 
-  // Visible-table set when a group is active. Members are filtered to
-  // tables that still exist in the current schema (stale names — e.g.
-  // a table removed from SQL — silently drop from the view but stay
-  // in `groups` so re-adding the table re-includes it). When no group
-  // is active, this is null → show every table.
-  const visibleSet = useMemo<Set<string> | null>(() => {
-    if (!activeGroup) return null
-    const members = groups[activeGroup]
-    if (!members) return null
-    const known = new Set(schema.tables.map((t) => t.name))
-    return new Set(members.filter((m) => known.has(m)))
-  }, [activeGroup, groups, schema])
+  // Visible-table set when a group is active. Pure helper extracted to
+  // ../groups so consumers building a custom canvas can reuse it.
+  const visibleSet = useMemo(
+    () => computeVisibleSet(schema, groups, activeGroup),
+    [schema, groups, activeGroup],
+  )
 
   const { baseNodes, baseEdges } = useMemo(() => {
     const known = new Set(schema.tables.map((t) => t.name))
@@ -120,10 +122,13 @@ function Flow(props: SchemaCanvasProps) {
         new Map(t.columns.map((c) => [c.name, c])),
       ]),
     )
-    const inView = (name: string) =>
-      visibleSet ? visibleSet.has(name) : known.has(name)
     const baseEdges: Edge[] = schema.foreignKeys
-      .filter((fk) => inView(fk.fromTable) && inView(fk.toTable))
+      .filter(
+        (fk) =>
+          known.has(fk.fromTable) &&
+          known.has(fk.toTable) &&
+          edgeIsVisible(visibleSet, fk.fromTable, fk.toTable),
+      )
       .map((fk, i) => {
         const fkCol = colByTable.get(fk.fromTable)?.get(fk.fromColumn)
         const optional = fkCol?.nullable ?? false
@@ -147,8 +152,10 @@ function Flow(props: SchemaCanvasProps) {
           // pass the BARE id here — not `url(#erd-…)` (that double-wraps
           // into `url('#url(#erd-…)')`, which is invalid and renders
           // nothing).
-          markerStart: optional ? 'erd-many-optional' : 'erd-many-mandatory',
-          markerEnd: 'erd-one',
+          markerStart: optional
+            ? ERD_MARKER_MANY_OPTIONAL
+            : ERD_MARKER_MANY_MANDATORY,
+          markerEnd: ERD_MARKER_ONE,
           data: { from: fk.fromTable, to: fk.toTable },
         }
       })
@@ -419,92 +426,12 @@ function Flow(props: SchemaCanvasProps) {
       className={`h-full w-full${className ? ` ${className}` : ''}`}
       style={style}
     >
-      {/*
-        Crow's-foot ERD marker definitions, rendered once per canvas.
-        Hidden zero-sized SVG so the markers exist in the DOM and can be
-        referenced by id from edge markerStart/markerEnd. `context-stroke`
-        makes them inherit the referencing edge's stroke color, so they
-        automatically follow theme (light/dark via --edge) AND hover/
-        selected state (--accent) without needing parallel marker sets.
-        Conventions:
-          erd-one             single bar  — "exactly one" (target / PK)
-          erd-many-mandatory  crow's foot — "one or many"    (NOT NULL FK)
-          erd-many-optional   circle + foot — "zero or many" (nullable FK)
-      */}
-      <svg
-        aria-hidden="true"
-        style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}
-      >
-        <defs>
-          {/* PK / "one" end: perpendicular bar PLUS a filled triangle
-              arrowhead pointing along the line. Bar = traditional ER
-              notation; arrowhead = obvious directional cue (the line
-              points TO the parent table). Amber matches the in-table
-              PK ◆ glyph. */}
-          <marker
-            id="erd-one"
-            viewBox="0 0 22 20"
-            markerWidth="11"
-            markerHeight="10"
-            refX="20"
-            refY="10"
-            orient="auto"
-            markerUnits="userSpaceOnUse"
-          >
-            <line
-              x1="6"
-              y1="2"
-              x2="6"
-              y2="18"
-              className="erd-marker erd-marker-pk"
-            />
-            <path
-              d="M 10 4 L 20 10 L 10 16 Z"
-              className="erd-arrow-fill"
-            />
-          </marker>
-          {/* FK / "many" end, NOT NULL: classic crow's foot in sky-blue,
-              matches the in-table FK ↗ glyph. */}
-          <marker
-            id="erd-many-mandatory"
-            viewBox="0 0 24 24"
-            markerWidth="12"
-            markerHeight="12"
-            refX="2"
-            refY="12"
-            orient="auto-start-reverse"
-            markerUnits="userSpaceOnUse"
-          >
-            <path
-              d="M 2 12 L 22 2 M 2 12 L 22 12 M 2 12 L 22 22"
-              className="erd-marker erd-marker-fk"
-            />
-          </marker>
-          {/* FK / "many" end, nullable: a small circle ("zero or") in
-              front of the crow's foot. Same sky-blue. */}
-          <marker
-            id="erd-many-optional"
-            viewBox="0 0 32 24"
-            markerWidth="16"
-            markerHeight="12"
-            refX="2"
-            refY="12"
-            orient="auto-start-reverse"
-            markerUnits="userSpaceOnUse"
-          >
-            <circle
-              cx="9"
-              cy="12"
-              r="3.5"
-              className="erd-marker erd-marker-fk"
-            />
-            <path
-              d="M 14 12 L 30 2 M 14 12 L 30 12 M 14 12 L 30 22"
-              className="erd-marker erd-marker-fk"
-            />
-          </marker>
-        </defs>
-      </svg>
+      {/* Marker SVG <defs> for crow's-foot ERD line ends. Extracted as
+          a standalone primitive so consumers composing their own canvas
+          (without our bundled <Canvas>) can drop the same markers in
+          beside their <ReactFlow>. See ErdMarkers.tsx for the exported
+          id constants. */}
+      <ErdMarkers />
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -638,126 +565,3 @@ export function Canvas(props: SchemaCanvasProps = {}) {
   )
 }
 
-/**
- * The right-click "Groups ▸" menu for a table node. Lists current
- * memberships with ✓ (click toggles off) and other groups (click adds).
- * "+ New group" prompts a name. Positioned absolutely at the click;
- * dismissed by the parent's click-outside / Escape effect.
- *
- * The `data-groups-ctxmenu` attribute is the marker that effect uses to
- * detect clicks inside the menu and NOT dismiss.
- */
-function GroupsContextMenu({
-  x,
-  y,
-  tableIds,
-  onClose,
-}: {
-  x: number
-  y: number
-  tableIds: string[]   // 1+ targets; >1 = bulk multi-select action
-  onClose: () => void
-}) {
-  const groups = useStore((s) => s.groups)
-  const addToGroup = useStore((s) => s.addToGroup)
-  const removeFromGroup = useStore((s) => s.removeFromGroup)
-  const createGroup = useStore((s) => s.createGroup)
-  const entries = Object.entries(groups)
-  const isMulti = tableIds.length > 1
-  // Friendly label for the menu header + buttons.
-  const targetLabel = isMulti
-    ? `${tableIds.length} tables selected`
-    : tableIds[0]
-  return (
-    <div
-      data-groups-ctxmenu
-      style={{
-        position: 'fixed',
-        left: Math.min(x, window.innerWidth - 240),
-        top: Math.min(y, window.innerHeight - 220),
-        zIndex: 50,
-      }}
-      className="min-w-[220px] rounded-md border border-[var(--border)] bg-[var(--surface)] py-1 text-xs shadow-xl"
-    >
-      <div className="px-3 py-1 text-[10px] uppercase tracking-wide text-[var(--text-soft)]">
-        Groups — {targetLabel}
-      </div>
-      {entries.length === 0 && (
-        <div className="px-3 py-1 text-[11px] text-[var(--text-soft)]">
-          No groups yet.
-        </div>
-      )}
-      {entries.map(([name, members]) => {
-        // For bulk semantics: all-in => "Remove all"; some-in or none-in
-        // => "Add missing" (adds the ones not already members). This is
-        // the most common intent and keeps the menu single-button per
-        // group rather than two confusing modes.
-        const memberSet = new Set(members)
-        const inCount = tableIds.filter((t) => memberSet.has(t)).length
-        const allIn = inCount === tableIds.length
-        return (
-          <button
-            key={name}
-            type="button"
-            onClick={() => {
-              if (allIn) {
-                // Remove every selected from this group.
-                for (const t of tableIds) removeFromGroup(name, t)
-              } else {
-                // Add only the ones not already in (addToGroup dedups
-                // internally but skipping known ones is clearer).
-                addToGroup(
-                  name,
-                  tableIds.filter((t) => !memberSet.has(t)),
-                )
-              }
-              onClose()
-            }}
-            className="flex w-full items-center gap-2 px-3 py-1 text-left hover:bg-[var(--surface-2)]"
-          >
-            <span className="w-3 text-purple-400">{allIn ? '✓' : ''}</span>
-            <span className="flex-1 truncate text-[var(--text)]">{name}</span>
-            <span className="text-[10px] text-[var(--text-soft)]">
-              {allIn
-                ? isMulti
-                  ? `Remove all (${inCount})`
-                  : 'Remove'
-                : isMulti
-                  ? `Add ${tableIds.length - inCount}${
-                      inCount > 0 ? ` (${inCount} already in)` : ''
-                    }`
-                  : 'Add'}
-            </span>
-          </button>
-        )
-      })}
-      <div className="my-1 h-px bg-[var(--border-soft)]" />
-      <button
-        type="button"
-        onClick={() => {
-          const placeholder = isMulti ? '' : tableIds[0]
-          const n = window.prompt(
-            isMulti
-              ? `New group containing ${tableIds.length} tables:`
-              : `New group from "${tableIds[0]}":`,
-            placeholder,
-          )
-          if (n === null) return
-          const trimmed = n.trim()
-          if (!trimmed) return
-          createGroup(trimmed)
-          addToGroup(trimmed, tableIds)
-          onClose()
-        }}
-        className="flex w-full items-center gap-2 px-3 py-1 text-left text-[var(--text)] hover:bg-[var(--surface-2)]"
-      >
-        <span className="w-3 text-[var(--text-soft)]">+</span>
-        <span>
-          {isMulti
-            ? `New group from ${tableIds.length} tables…`
-            : 'New group from this table…'}
-        </span>
-      </button>
-    </div>
-  )
-}

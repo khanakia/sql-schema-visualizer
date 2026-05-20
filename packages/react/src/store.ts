@@ -392,3 +392,45 @@ export const useStore = create<State>((set) => ({
       }
     }),
 }))
+
+/**
+ * Convenience hook returning JUST the store action functions (no state).
+ * Stable references — calling components don't re-render on state
+ * changes the way `useSchemaStore(s => s.everything)` would. Use this
+ * when you only need to mutate (e.g. a custom toolbar button that
+ * toggles a group).
+ *
+ *   const { createGroup, addToGroup, setActiveGroup } = useSchemaActions()
+ */
+export function useSchemaActions() {
+  return useStore((s) => ({
+    // Schema input
+    setSql: s.setSql,
+    loadSample: s.loadSample,
+    // Search + filter
+    setSearch: s.setSearch,
+    setDirection: s.setDirection,
+    // Display preferences
+    toggleComments: s.toggleComments,
+    toggleSidebar: s.toggleSidebar,
+    toggleTheme: s.toggleTheme,
+    // Table-level UI
+    toggleCollapse: s.toggleCollapse,
+    collapseAll: s.collapseAll,
+    expandAll: s.expandAll,
+    resetLayout: s.resetLayout,
+    // FK navigation
+    focusTable: s.focusTable,
+    back: s.back,
+    // Groups
+    createGroup: s.createGroup,
+    renameGroup: s.renameGroup,
+    deleteGroup: s.deleteGroup,
+    addToGroup: s.addToGroup,
+    removeFromGroup: s.removeFromGroup,
+    setActiveGroup: s.setActiveGroup,
+    cleanGroup: s.cleanGroup,
+    // Hydration (rare — used by storage adapter swaps)
+    hydrate: s.hydrate,
+  }))
+}
