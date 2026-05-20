@@ -15,6 +15,7 @@ import {
   ShareButton,
   ThemeButton,
 } from './controls'
+import { HelpButton } from './Help'
 
 export interface SchemaToolbarProps {
   onFit: () => void
@@ -43,6 +44,7 @@ export function Toolbar({ onFit, onExport, className }: SchemaToolbarProps) {
       <ShareButton />
       <ToolbarDivider />
       <ThemeButton />
+      <HelpButton />
     </div>
   )
 }

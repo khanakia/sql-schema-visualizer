@@ -49,6 +49,14 @@ export {
 } from './components/controls'
 export type { ToolbarButtonProps } from './components/controls'
 
+// help system — searchable "every feature" modal + its trigger.
+// Both accept an `entries` prop so you can extend or replace the
+// bundled `defaultHelpEntries` for your distribution.
+export { HelpButton, HelpModal } from './components/Help'
+export type { HelpButtonProps, HelpModalProps } from './components/Help'
+export { defaultHelpEntries, matchHelpEntry } from './help'
+export type { HelpEntry } from './help'
+
 // store + share helpers
 export { useStore as useSchemaStore, buildShareUrl, SHARE_URL_SOFT_LIMIT } from './store'
 
