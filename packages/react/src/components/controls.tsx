@@ -135,6 +135,36 @@ export function CommentModeButton() {
   )
 }
 
+/**
+ * Shows the currently active group as a dismissible pill. Hidden when
+ * activeGroup is null (the "show all" state). Click × to clear and
+ * restore the full canvas — the visible Back-vs-clear distinction:
+ *   ← Back  pops FK history (different tables).
+ *   ×       clears the group filter (different *visible set*).
+ */
+export function ActiveGroupPill() {
+  const activeGroup = useStore((s) => s.activeGroup)
+  const setActiveGroup = useStore((s) => s.setActiveGroup)
+  if (!activeGroup) return null
+  return (
+    <div
+      title="Currently filtering canvas to this group. Click × to show all."
+      className="flex h-7 items-center gap-1 rounded-md bg-purple-500/15 px-2 text-xs text-purple-200"
+    >
+      <span className="text-[var(--text-soft)]">Viewing:</span>
+      <span className="font-medium">{activeGroup}</span>
+      <button
+        type="button"
+        onClick={() => setActiveGroup(null)}
+        className="ml-0.5 rounded px-1 text-[var(--text-soft)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+        title="Clear filter (show all tables)"
+      >
+        ×
+      </button>
+    </div>
+  )
+}
+
 // Pops the FK-navigation history (same as Backspace). Disabled when
 // the stack is empty so users can see at a glance whether there's
 // anywhere to go back to.

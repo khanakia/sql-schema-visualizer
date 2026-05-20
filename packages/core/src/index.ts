@@ -17,6 +17,7 @@ export {
   type Point,
 } from './layout'
 
-export { encodeSql, decodeSql } from './share'
+export { encodeSql, decodeSql, encodeGroups, decodeGroups } from './share'
+export type { SharedGroups } from './share'
 
 export { samples, type Sample } from './samples'

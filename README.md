@@ -37,7 +37,9 @@ Most SQL schema visualization tools are either paid, require a live database con
 - **Smart search** — filter by table *or* column name; matching tables expand to show the hit fields.
 - **Click to navigate** — jump straight to any table or field; the canvas centers and highlights it.
 - **SQL comments preserved** — table- and column-level `--` / `#` comments are captured and shown inline or as hover popovers (toggle: off → inline → hover).
-- **Foreign-key edges** — column-to-column relationship lines with PK / FK / NOT NULL markers.
+- **Foreign-key edges** — column-to-column relationship lines with crow's-foot ERD markers (FK side blue with crow's foot; PK side amber with bar + arrowhead; nullable FKs get an extra circle).
+- **Follow-the-FK navigation** — click the `↗` on any FK column or the edge itself to jump to the referenced table; navigation history with `⌥/Alt+←` or `⌘/Ctrl+[` and a visible `← Back` button.
+- **Table groups** — name a subset of tables (e.g. `billing`, `auth`) and click to filter the canvas to just those; group memberships persist locally and travel in the share URL.
 - **Import** — paste DDL or upload a `.sql` file. Built-in sample schemas (e-commerce, blog, SaaS).
 - **Export** — one-click PNG of the full diagram.
 - **Share** — whole schema compressed into a URL fragment (deflate-raw, ~2.9×); 100% client-side, no server.

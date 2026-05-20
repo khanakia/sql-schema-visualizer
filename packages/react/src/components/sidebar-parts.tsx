@@ -2,6 +2,7 @@
 // these (or use the bundled <SchemaSidebar>). Each reads/writes the
 // shared store and is headless of outer layout.
 
+import { useMemo, useState } from 'react'
 import { useStore } from '../store'
 
 /** Search input — filters the store query; Enter jumps to the first hit. */
@@ -141,6 +142,318 @@ export function SqlImport({ className = '' }: { className?: string }) {
         placeholder="…or paste CREATE TABLE statements here — the diagram updates as you type."
         className="flex-1 resize-none bg-[var(--bg)] p-3 font-mono text-[11px] leading-relaxed text-[var(--text)] outline-none"
       />
+    </div>
+  )
+}
+
+/**
+ * Groups panel — name a subset of tables and toggle a focused view.
+ * Reads `groups` + `activeGroup` from the store; the actual canvas
+ * filtering happens in Canvas.tsx via `visibleSet` (see
+ * .ai/plans/table-groups/PLAN.md). All UI state (which group is
+ * expanded, which is in "add tables" mode, the picker checked set) is
+ * local — store stays pure.
+ */
+export function GroupsPanel({ className = '' }: { className?: string }) {
+  const groups = useStore((s) => s.groups)
+  const activeGroup = useStore((s) => s.activeGroup)
+  const tables = useStore((s) => s.schema.tables)
+  const createGroup = useStore((s) => s.createGroup)
+  const deleteGroup = useStore((s) => s.deleteGroup)
+  const renameGroup = useStore((s) => s.renameGroup)
+  const addToGroup = useStore((s) => s.addToGroup)
+  const removeFromGroup = useStore((s) => s.removeFromGroup)
+  const setActiveGroup = useStore((s) => s.setActiveGroup)
+  const cleanGroup = useStore((s) => s.cleanGroup)
+
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState('')
+  // expanded = the single group whose member list is showing. Single-
+  // open accordion to keep the panel compact in small sidebars.
+  const [expanded, setExpanded] = useState<string | null>(null)
+  // adding = the group currently showing the "+ Add tables…" picker.
+  const [adding, setAdding] = useState<string | null>(null)
+  const [pickerSearch, setPickerSearch] = useState('')
+  const [pickerSelected, setPickerSelected] = useState<Set<string>>(new Set())
+
+  const groupEntries = Object.entries(groups)
+  const knownTables = useMemo(
+    () => new Set(tables.map((t) => t.name)),
+    [tables],
+  )
+
+  function submitNew() {
+    const n = newName.trim()
+    if (!n) return
+    createGroup(n)
+    setNewName('')
+    setCreating(false)
+    setExpanded(n)
+  }
+
+  function openAdder(name: string) {
+    setAdding(name)
+    setPickerSearch('')
+    setPickerSelected(new Set())
+  }
+
+  function applyAdder() {
+    if (!adding) return
+    addToGroup(adding, [...pickerSelected])
+    setAdding(null)
+    setPickerSelected(new Set())
+  }
+
+  function renamePrompt(name: string) {
+    // prompt() keeps the implementation small; a custom modal can come later.
+    const next = window.prompt(`Rename group "${name}" to:`, name)
+    if (next === null) return
+    const trimmed = next.trim()
+    if (!trimmed || trimmed === name) return
+    renameGroup(name, trimmed)
+    if (expanded === name) setExpanded(trimmed)
+    if (adding === name) setAdding(trimmed)
+  }
+
+  function confirmDelete(name: string) {
+    if (!window.confirm(`Delete group "${name}"? Tables stay; only the group is removed.`))
+      return
+    deleteGroup(name)
+    if (expanded === name) setExpanded(null)
+    if (adding === name) setAdding(null)
+  }
+
+  return (
+    <div className={`border-b border-[var(--border-soft)] ${className}`}>
+      <div className="flex items-center justify-between px-4 py-2 text-[11px] uppercase tracking-wide text-[var(--text-soft)]">
+        <span>Groups ({groupEntries.length})</span>
+        <button
+          type="button"
+          onClick={() => {
+            setCreating((c) => !c)
+            setNewName('')
+          }}
+          className="rounded px-1.5 py-0.5 text-[var(--text-soft)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+          title="New group"
+        >
+          + New
+        </button>
+      </div>
+
+      {creating && (
+        <div className="flex gap-1 px-4 pb-2">
+          <input
+            autoFocus
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submitNew()
+              else if (e.key === 'Escape') {
+                setCreating(false)
+                setNewName('')
+              }
+            }}
+            placeholder="e.g. billing"
+            maxLength={60}
+            className="flex-1 rounded border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--text)] outline-none focus:border-purple-500"
+          />
+          <button
+            type="button"
+            onClick={submitNew}
+            disabled={!newName.trim()}
+            className="rounded bg-purple-600 px-2 py-1 text-xs font-medium text-white hover:bg-purple-500 disabled:opacity-40"
+          >
+            Add
+          </button>
+        </div>
+      )}
+
+      {groupEntries.length === 0 && !creating && (
+        <p className="px-4 pb-3 text-[11px] text-[var(--text-soft)]">
+          No groups yet. Create one to focus on a subset of tables.
+        </p>
+      )}
+
+      {groupEntries.map(([name, members]) => {
+        const total = members.length
+        const visible = members.filter((m) => knownTables.has(m)).length
+        const stale = total - visible
+        const isActive = activeGroup === name
+        const isExpanded = expanded === name
+        return (
+          <div key={name} className="border-t border-[var(--border-soft)]">
+            <div
+              className={`flex items-center gap-1.5 px-4 py-1.5 text-xs ${
+                isActive
+                  ? 'bg-purple-500/15 text-[var(--text-strong)]'
+                  : 'text-[var(--text)]'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => setActiveGroup(isActive ? null : name)}
+                className="text-[13px] leading-none"
+                title={isActive ? 'Clear filter (show all)' : 'View only this group'}
+              >
+                {isActive ? '👁' : '◯'}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setExpanded((cur) => (cur === name ? null : name))
+                }
+                className="flex-1 truncate text-left font-medium"
+                title="Expand / collapse members"
+              >
+                <span className="mr-1 text-[var(--text-soft)]">
+                  {isExpanded ? '▾' : '▸'}
+                </span>
+                {name}
+                <span className="ml-1.5 text-[10px] text-[var(--text-soft)]">
+                  {stale > 0 ? `${visible}/${total}` : total}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => renamePrompt(name)}
+                className="rounded px-1 text-[var(--text-soft)] hover:text-[var(--text)]"
+                title="Rename"
+              >
+                ✎
+              </button>
+              <button
+                type="button"
+                onClick={() => confirmDelete(name)}
+                className="rounded px-1 text-[var(--text-soft)] hover:text-rose-400"
+                title="Delete group"
+              >
+                🗑
+              </button>
+            </div>
+
+            {isExpanded && (
+              <div className="pb-2">
+                {stale > 0 && (
+                  <div className="mx-4 mb-1 flex items-center gap-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-200">
+                    <span>
+                      {stale} member{stale === 1 ? '' : 's'} not in current
+                      schema
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => cleanGroup(name)}
+                      className="ml-auto rounded px-1.5 py-0.5 text-[10px] font-medium text-amber-100 hover:bg-amber-500/20"
+                      title="Remove members that no longer match a table in the SQL"
+                    >
+                      🧹 Clean up
+                    </button>
+                  </div>
+                )}
+                {members.length === 0 && (
+                  <p className="px-6 py-1 text-[11px] text-[var(--text-soft)]">
+                    No members. Use "+ Add tables…" below.
+                  </p>
+                )}
+                {members.map((m) => {
+                  const exists = knownTables.has(m)
+                  return (
+                    <div
+                      key={m}
+                      className="flex items-center gap-1 px-6 py-1 text-xs"
+                    >
+                      <span
+                        className={`flex-1 truncate ${exists ? '' : 'italic text-[var(--text-soft)] line-through'}`}
+                        title={exists ? '' : 'Not in the current schema'}
+                      >
+                        {m}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeFromGroup(name, m)}
+                        className="rounded px-1 text-[var(--text-soft)] hover:text-rose-400"
+                        title="Remove from group"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )
+                })}
+
+                {adding === name ? (
+                  <div className="mx-4 mt-1 rounded border border-[var(--border)] bg-[var(--surface-2)] p-2">
+                    <input
+                      autoFocus
+                      value={pickerSearch}
+                      onChange={(e) => setPickerSearch(e.target.value)}
+                      placeholder="Filter tables…"
+                      className="mb-1 w-full rounded border border-[var(--border)] bg-[var(--surface)] px-1.5 py-0.5 text-xs text-[var(--text)] outline-none focus:border-purple-500"
+                    />
+                    <div className="max-h-40 overflow-y-auto">
+                      {tables
+                        .filter(
+                          (t) =>
+                            !members.includes(t.name) &&
+                            (!pickerSearch ||
+                              t.name
+                                .toLowerCase()
+                                .includes(pickerSearch.toLowerCase())),
+                        )
+                        .map((t) => {
+                          const checked = pickerSelected.has(t.name)
+                          return (
+                            <label
+                              key={t.name}
+                              className="flex cursor-pointer items-center gap-1.5 rounded px-1 py-0.5 text-xs hover:bg-[var(--surface)]"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={(e) => {
+                                  setPickerSelected((cur) => {
+                                    const next = new Set(cur)
+                                    if (e.target.checked) next.add(t.name)
+                                    else next.delete(t.name)
+                                    return next
+                                  })
+                                }}
+                              />
+                              <span className="truncate">{t.name}</span>
+                            </label>
+                          )
+                        })}
+                    </div>
+                    <div className="mt-1 flex justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setAdding(null)}
+                        className="rounded px-2 py-0.5 text-[11px] text-[var(--text-soft)] hover:text-[var(--text)]"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={applyAdder}
+                        disabled={pickerSelected.size === 0}
+                        className="rounded bg-purple-600 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-purple-500 disabled:opacity-40"
+                      >
+                        Add {pickerSelected.size || ''}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => openAdder(name)}
+                    className="ml-4 mt-1 rounded px-2 py-0.5 text-[11px] text-[var(--text-soft)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+                  >
+                    + Add tables…
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

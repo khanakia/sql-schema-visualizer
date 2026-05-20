@@ -196,4 +196,94 @@ CREATE TABLE cities (
   region_id  INTEGER NOT NULL REFERENCES regions(id)
 );`,
   },
+  {
+    id: 'groups-demo',
+    name: 'Mini ERP (groups demo)',
+    dialect: 'PostgreSQL',
+    sql: `-- 12-table schema with three obvious clusters. Open the sidebar
+-- "Groups" panel and create:
+--   auth    -> users, sessions, api_keys
+--   content -> posts, post_tags, tags, comments
+--   billing -> customers, plans, subscriptions, invoices, invoice_items
+-- Then click the 👁 icon on a group to filter the canvas to it.
+
+-- ── auth ──────────────────────────────────────────────────────────
+CREATE TABLE users (
+  id          SERIAL PRIMARY KEY,
+  email       VARCHAR(255) NOT NULL UNIQUE,
+  full_name   VARCHAR(120) NOT NULL,
+  created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+CREATE TABLE sessions (
+  id          SERIAL PRIMARY KEY,
+  user_id     INTEGER NOT NULL REFERENCES users(id),
+  token       VARCHAR(64) NOT NULL UNIQUE,
+  expires_at  TIMESTAMPTZ NOT NULL
+);
+CREATE TABLE api_keys (
+  id          SERIAL PRIMARY KEY,
+  user_id     INTEGER NOT NULL REFERENCES users(id),
+  label       VARCHAR(80) NOT NULL,
+  secret_hash VARCHAR(120) NOT NULL,
+  revoked_at  TIMESTAMPTZ
+);
+
+-- ── content ───────────────────────────────────────────────────────
+CREATE TABLE posts (
+  id         SERIAL PRIMARY KEY,
+  author_id  INTEGER NOT NULL REFERENCES users(id),
+  title      VARCHAR(200) NOT NULL,
+  body       TEXT NOT NULL,
+  published  BOOLEAN NOT NULL DEFAULT false
+);
+CREATE TABLE tags (
+  id    SERIAL PRIMARY KEY,
+  slug  VARCHAR(40) NOT NULL UNIQUE
+);
+CREATE TABLE post_tags (
+  post_id  INTEGER NOT NULL REFERENCES posts(id),
+  tag_id   INTEGER NOT NULL REFERENCES tags(id),
+  PRIMARY KEY (post_id, tag_id)
+);
+CREATE TABLE comments (
+  id          SERIAL PRIMARY KEY,
+  post_id     INTEGER NOT NULL REFERENCES posts(id),
+  author_id   INTEGER NOT NULL REFERENCES users(id),
+  parent_id   INTEGER REFERENCES comments(id),   -- nullable: thread root
+  body        TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ── billing ───────────────────────────────────────────────────────
+CREATE TABLE plans (
+  id            SERIAL PRIMARY KEY,
+  code          VARCHAR(40) NOT NULL UNIQUE,   -- free|pro|team|enterprise
+  monthly_cents INTEGER NOT NULL
+);
+CREATE TABLE customers (
+  id        SERIAL PRIMARY KEY,
+  user_id   INTEGER NOT NULL REFERENCES users(id),
+  company   VARCHAR(120),
+  vat_id    VARCHAR(40)
+);
+CREATE TABLE subscriptions (
+  id           SERIAL PRIMARY KEY,
+  customer_id  INTEGER NOT NULL REFERENCES customers(id),
+  plan_id      INTEGER NOT NULL REFERENCES plans(id),
+  started_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  cancelled_at TIMESTAMPTZ                    -- nullable: still active
+);
+CREATE TABLE invoices (
+  id            SERIAL PRIMARY KEY,
+  subscription_id INTEGER NOT NULL REFERENCES subscriptions(id),
+  total_cents   INTEGER NOT NULL,
+  paid_at       TIMESTAMPTZ                   -- nullable: unpaid
+);
+CREATE TABLE invoice_items (
+  id          SERIAL PRIMARY KEY,
+  invoice_id  INTEGER NOT NULL REFERENCES invoices(id),
+  description VARCHAR(200) NOT NULL,
+  cents       INTEGER NOT NULL
+);`,
+  },
 ]

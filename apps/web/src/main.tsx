@@ -6,18 +6,30 @@ import {
   createHashHistory,
 } from '@tanstack/react-router'
 import '@khanakia/sql-schema-react/styles.css'
-import { useSchemaStore, decodeSql } from '@khanakia/sql-schema-react'
-// Eager — strips a #s=<token> share link from the URL synchronously BEFORE
-// the router is created, so the hash router never mounts on the token and
-// flashes "Not Found".
-import { pendingShareToken } from './shareBoot'
+import { useSchemaStore, decodeSql, decodeGroups } from '@khanakia/sql-schema-react'
+// Eager — strips share tokens (#s= SQL, #g= groups) from the URL
+// synchronously BEFORE the router is created, so the hash router never
+// mounts on a token and flashes "Not Found".
+import { pendingShareToken, pendingGroupsToken } from './shareBoot'
 import { routeTree } from './routeTree.gen'
 
-// Hydrate from a shared link (decode is async; the token was already
+// Hydrate from a shared link (decode is async; tokens were already
 // stripped from the URL synchronously by shareBoot).
 if (pendingShareToken) {
   decodeSql(pendingShareToken).then((sql) => {
     if (sql) useSchemaStore.getState().setSql(sql)
+  })
+}
+if (pendingGroupsToken) {
+  decodeGroups(pendingGroupsToken).then((payload) => {
+    // Apply by replacing the (probably empty) initial groups state. We
+    // bypass the per-action validators on purpose — decodeGroups already
+    // sanitized + filtered the incoming payload. Persisting happens via
+    // hydrate-equivalent behavior on next mutation; for now set in-memory.
+    useSchemaStore.setState({
+      groups: payload.groups,
+      activeGroup: payload.activeGroup,
+    })
   })
 }
 

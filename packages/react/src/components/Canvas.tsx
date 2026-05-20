@@ -3,6 +3,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type CSSProperties,
 } from 'react'
 import {
@@ -55,6 +56,8 @@ function Flow(props: SchemaCanvasProps) {
   const focus = useStore((s) => s.focus)
   const theme = useStore((s) => s.theme)
   const commentMode = useStore((s) => s.commentMode)
+  const groups = useStore((s) => s.groups)
+  const activeGroup = useStore((s) => s.activeGroup)
   const { fitView, setCenter, getNode, getNodes, getViewport, setViewport } =
     useReactFlow()
   const nodesInitialized = useNodesInitialized()
@@ -76,9 +79,25 @@ function Flow(props: SchemaCanvasProps) {
 
   const q = search.trim().toLowerCase()
 
+  // Visible-table set when a group is active. Members are filtered to
+  // tables that still exist in the current schema (stale names — e.g.
+  // a table removed from SQL — silently drop from the view but stay
+  // in `groups` so re-adding the table re-includes it). When no group
+  // is active, this is null → show every table.
+  const visibleSet = useMemo<Set<string> | null>(() => {
+    if (!activeGroup) return null
+    const members = groups[activeGroup]
+    if (!members) return null
+    const known = new Set(schema.tables.map((t) => t.name))
+    return new Set(members.filter((m) => known.has(m)))
+  }, [activeGroup, groups, schema])
+
   const { baseNodes, baseEdges } = useMemo(() => {
     const known = new Set(schema.tables.map((t) => t.name))
-    const baseNodes: Node[] = schema.tables.map((t) => ({
+    const visTables = visibleSet
+      ? schema.tables.filter((t) => visibleSet.has(t.name))
+      : schema.tables
+    const baseNodes: Node[] = visTables.map((t) => ({
       id: t.name,
       type: 'table',
       position: { x: 0, y: 0 },
@@ -101,8 +120,10 @@ function Flow(props: SchemaCanvasProps) {
         new Map(t.columns.map((c) => [c.name, c])),
       ]),
     )
+    const inView = (name: string) =>
+      visibleSet ? visibleSet.has(name) : known.has(name)
     const baseEdges: Edge[] = schema.foreignKeys
-      .filter((fk) => known.has(fk.fromTable) && known.has(fk.toTable))
+      .filter((fk) => inView(fk.fromTable) && inView(fk.toTable))
       .map((fk, i) => {
         const fkCol = colByTable.get(fk.fromTable)?.get(fk.fromColumn)
         const optional = fkCol?.nullable ?? false
@@ -132,7 +153,7 @@ function Flow(props: SchemaCanvasProps) {
         }
       })
     return { baseNodes, baseEdges }
-  }, [schema])
+  }, [schema, visibleSet])
 
   const laidOut = useMemo(
     () =>
@@ -255,6 +276,43 @@ function Flow(props: SchemaCanvasProps) {
       }),
     )
   }, [q, setNodes, setEdges, getNode])
+
+  // If the active group has zero visible members in the current schema
+  // (e.g. its tables were renamed/removed in the SQL), auto-clear the
+  // filter so the user sees the (full) schema rather than a blank
+  // canvas. Group membership itself is left untouched — re-adding the
+  // tables in SQL would restore the group.
+  useEffect(() => {
+    if (activeGroup && visibleSet && visibleSet.size === 0) {
+      useStore.getState().setActiveGroup(null)
+    }
+  }, [activeGroup, visibleSet])
+
+  // Right-click context menu state for the "Groups" submenu on a table
+  // node. Null when closed; positioned at the click coords when open.
+  // Click-outside / Escape dismisses (see effect below).
+  const [ctxMenu, setCtxMenu] = useState<
+    { x: number; y: number; tableId: string } | null
+  >(null)
+
+  // Dismiss the ctx menu on Escape or any mousedown outside it.
+  useEffect(() => {
+    if (!ctxMenu) return
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t && t.closest('[data-groups-ctxmenu]')) return
+      setCtxMenu(null)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCtxMenu(null)
+    }
+    window.addEventListener('mousedown', onDown, true)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('mousedown', onDown, true)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [ctxMenu])
 
   // Keyboard shortcuts for "navigation back". Two combos, either works:
   //   - Alt/Option + ←   (browser-back convention; Cmd+← also fires here)
@@ -451,6 +509,13 @@ function Flow(props: SchemaCanvasProps) {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={(_, n) => onTableClick?.(n.id)}
+        onNodeContextMenu={(e, n) => {
+          // Suppress browser context menu so our Groups submenu can own
+          // the right-click on table nodes. The pane and edges still
+          // get the default browser menu — keeps debugging accessible.
+          e.preventDefault()
+          setCtxMenu({ x: e.clientX, y: e.clientY, tableId: n.id })
+        }}
         // Click an FK edge -> jump to the OPPOSITE end of where we're
         // currently focused (ping-pong). With no current focus, jump
         // to the target (the referenced PK side) — the natural "follow"
@@ -499,6 +564,14 @@ function Flow(props: SchemaCanvasProps) {
           />
         )}
       </ReactFlow>
+      {ctxMenu && (
+        <GroupsContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          tableId={ctxMenu.tableId}
+          onClose={() => setCtxMenu(null)}
+        />
+      )}
       {showToolbar && (
         <Toolbar
           onFit={() => fitView({ padding: fitViewPadding, duration: 400 })}
@@ -550,5 +623,95 @@ export function Canvas(props: SchemaCanvasProps = {}) {
     <ReactFlowProvider>
       <Flow {...props} />
     </ReactFlowProvider>
+  )
+}
+
+/**
+ * The right-click "Groups ▸" menu for a table node. Lists current
+ * memberships with ✓ (click toggles off) and other groups (click adds).
+ * "+ New group" prompts a name. Positioned absolutely at the click;
+ * dismissed by the parent's click-outside / Escape effect.
+ *
+ * The `data-groups-ctxmenu` attribute is the marker that effect uses to
+ * detect clicks inside the menu and NOT dismiss.
+ */
+function GroupsContextMenu({
+  x,
+  y,
+  tableId,
+  onClose,
+}: {
+  x: number
+  y: number
+  tableId: string
+  onClose: () => void
+}) {
+  const groups = useStore((s) => s.groups)
+  const addToGroup = useStore((s) => s.addToGroup)
+  const removeFromGroup = useStore((s) => s.removeFromGroup)
+  const createGroup = useStore((s) => s.createGroup)
+  const entries = Object.entries(groups)
+  return (
+    <div
+      data-groups-ctxmenu
+      // Clamp to viewport so the menu doesn't render off-screen when
+      // right-clicking near the edges. Small fixed-position popover.
+      style={{
+        position: 'fixed',
+        left: Math.min(x, window.innerWidth - 240),
+        top: Math.min(y, window.innerHeight - 220),
+        zIndex: 50,
+      }}
+      className="min-w-[200px] rounded-md border border-[var(--border)] bg-[var(--surface)] py-1 text-xs shadow-xl"
+    >
+      <div className="px-3 py-1 text-[10px] uppercase tracking-wide text-[var(--text-soft)]">
+        Groups — {tableId}
+      </div>
+      {entries.length === 0 && (
+        <div className="px-3 py-1 text-[11px] text-[var(--text-soft)]">
+          No groups yet.
+        </div>
+      )}
+      {entries.map(([name, members]) => {
+        const inGroup = members.includes(tableId)
+        return (
+          <button
+            key={name}
+            type="button"
+            onClick={() => {
+              if (inGroup) removeFromGroup(name, tableId)
+              else addToGroup(name, [tableId])
+              onClose()
+            }}
+            className="flex w-full items-center gap-2 px-3 py-1 text-left hover:bg-[var(--surface-2)]"
+          >
+            <span className="w-3 text-purple-400">{inGroup ? '✓' : ''}</span>
+            <span className="flex-1 truncate text-[var(--text)]">{name}</span>
+            <span className="text-[10px] text-[var(--text-soft)]">
+              {inGroup ? 'Remove' : 'Add'}
+            </span>
+          </button>
+        )
+      })}
+      <div className="my-1 h-px bg-[var(--border-soft)]" />
+      <button
+        type="button"
+        onClick={() => {
+          const n = window.prompt(`New group from "${tableId}":`, tableId)
+          if (n === null) return
+          const trimmed = n.trim()
+          if (!trimmed) return
+          createGroup(trimmed)
+          // Re-read after create; the store rejects dups, so the
+          // addToGroup is safe whether or not we actually created.
+          addToGroup(trimmed, [tableId])
+          onClose()
+        }}
+        className="flex w-full items-center gap-2 px-3 py-1 text-left text-[var(--text)] hover:bg-[var(--surface-2)]"
+      >
+        <span className="w-3 text-[var(--text-soft)]">+</span>
+        <span>New group from this table…</span>
+      </button>
+    </div>
   )
 }

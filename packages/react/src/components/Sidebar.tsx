@@ -8,6 +8,7 @@ import {
   TableList,
   SqlImport,
   CollapseSidebarButton,
+  GroupsPanel,
 } from './sidebar-parts'
 
 export interface SchemaSidebarProps {
@@ -44,6 +45,8 @@ export function Sidebar({
       <div className="px-4 py-3 border-b border-[var(--border-soft)]">
         <SchemaSearch />
       </div>
+
+      <GroupsPanel />
 
       <div className="flex border-b border-[var(--border-soft)] text-xs">
         {(['tables', 'sql'] as const).map((t) => (

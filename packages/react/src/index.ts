@@ -22,6 +22,7 @@ export {
   SchemaWarnings,
   TableList,
   SqlImport,
+  GroupsPanel,
   CollapseSidebarButton,
 } from './components/sidebar-parts'
 export { Toolbar as SchemaToolbar } from './components/Toolbar'
@@ -36,6 +37,7 @@ export {
   ToolbarDivider,
   SamplesMenu,
   BackButton,
+  ActiveGroupPill,
   LayoutDirectionButton,
   CollapseAllButton,
   CommentModeButton,
@@ -59,6 +61,8 @@ export {
   layoutGraph,
   encodeSql,
   decodeSql,
+  encodeGroups,
+  decodeGroups,
   samples,
   type Schema,
   type Table,

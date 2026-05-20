@@ -1,5 +1,11 @@
 import { create } from 'zustand'
-import { parseSchema, encodeSql, samples, type Schema } from '@khanakia/sql-schema-core'
+import {
+  parseSchema,
+  encodeSql,
+  encodeGroups,
+  samples,
+  type Schema,
+} from '@khanakia/sql-schema-core'
 import { storage } from './storage'
 
 // Cap on the FK-navigation history stack. Bounded so a long browsing
@@ -9,16 +15,80 @@ const HISTORY_MAX = 50
 const K_SQL = 'dbviz.sql'
 const K_COMMENTS = 'dbviz.comments'
 const K_THEME = 'dbviz.theme'
+// Versioned key so future shape changes don't silently break older saves.
+// See .ai/plans/table-groups/PLAN.md "Data model".
+const K_GROUPS = 'dbviz.groups.v1'
+const MAX_GROUP_NAME_LEN = 60
+
+/** Persistent shape stored under K_GROUPS. Kept tiny to fit in localStorage
+ *  alongside SQL + theme + comment-mode without crowding. */
+interface GroupsState {
+  groups: Record<string, string[]>   // group name -> table names (order = display order)
+  activeGroup: string | null         // null = "Show all"; else only that group is visible
+}
+
+function readGroupsState(): GroupsState {
+  const raw = storage.getItem(K_GROUPS)
+  if (!raw) return { groups: {}, activeGroup: null }
+  try {
+    const parsed = JSON.parse(raw) as Partial<GroupsState>
+    const groups: Record<string, string[]> = {}
+    if (parsed && typeof parsed.groups === 'object' && parsed.groups) {
+      for (const [name, tables] of Object.entries(parsed.groups)) {
+        if (!name || typeof name !== 'string') continue
+        if (!Array.isArray(tables)) continue
+        // Dedup + filter to non-empty strings; preserve insertion order.
+        const seen = new Set<string>()
+        const clean: string[] = []
+        for (const t of tables) {
+          if (typeof t !== 'string' || !t || seen.has(t)) continue
+          seen.add(t)
+          clean.push(t)
+        }
+        groups[name] = clean
+      }
+    }
+    const activeGroup =
+      typeof parsed?.activeGroup === 'string' && parsed.activeGroup in groups
+        ? parsed.activeGroup
+        : null
+    return { groups, activeGroup }
+  } catch {
+    return { groups: {}, activeGroup: null }
+  }
+}
+
+function writeGroupsState(s: GroupsState) {
+  // Skip persisting when the state is "empty default" to keep storage clean
+  // for users who never touched groups.
+  if (Object.keys(s.groups).length === 0 && s.activeGroup === null) {
+    storage.setItem(K_GROUPS, '')
+    return
+  }
+  storage.setItem(K_GROUPS, JSON.stringify(s))
+}
 
 // Browsers handle huge fragments fine, but a link this long gets mangled
 // when pasted into chat apps / link unfurlers, so Share warns past this.
 export const SHARE_URL_SOFT_LIMIT = 16000
 
-/** Build a shareable absolute URL with the SQL compressed into the fragment. */
-export async function buildShareUrl(sql: string): Promise<string> {
-  const token = await encodeSql(sql)
+/** Build a shareable absolute URL. SQL always goes in `#s=`; groups +
+ *  active group (if any) go in `#g=` as a separate compressed param so
+ *  pre-groups viewers ignore them and still load the SQL correctly. */
+export async function buildShareUrl(
+  sql: string,
+  opts?: { groups?: Record<string, string[]>; activeGroup?: string | null },
+): Promise<string> {
+  const sToken = await encodeSql(sql)
+  const gToken = opts
+    ? await encodeGroups({
+        groups: opts.groups ?? {},
+        activeGroup: opts.activeGroup ?? null,
+      })
+    : null
   const { origin, pathname } = window.location
-  return `${origin}${pathname}#s=${token}`
+  const hash = gToken ? `#s=${sToken}&g=${gToken}` : `#s=${sToken}`
+  return `${origin}${pathname}${hash}`
 }
 
 function readCommentMode(): 'off' | 'inline' | 'hover' {
@@ -75,6 +145,30 @@ interface State {
   focusTable: (table: string, column?: string, opts?: { push?: boolean }) => void
   /** Pop the last history entry and focus it. No-op if history empty. */
   back: () => void
+
+  // --- Table groups (see .ai/plans/table-groups/PLAN.md) ---
+  // Pure UI state. Never touches schema/SQL; reparsing the SQL doesn't
+  // change membership (only filters stale names from the visible set).
+  /** Group name -> list of table names. Order = display order. */
+  groups: Record<string, string[]>
+  /** null = "Show all"; else only the named group's members are visible. */
+  activeGroup: string | null
+  /** Create a new empty group. No-op if name is empty/dup/too long. */
+  createGroup: (name: string) => void
+  /** Rename a group. No-op if `to` is empty/dup or `from` doesn't exist. */
+  renameGroup: (from: string, to: string) => void
+  /** Delete a group. Auto-clears activeGroup if it pointed here. */
+  deleteGroup: (name: string) => void
+  /** Add one or more tables to a group. Dedup'd, order preserved. */
+  addToGroup: (name: string, tables: string[]) => void
+  /** Remove a single table from a group. */
+  removeFromGroup: (name: string, table: string) => void
+  /** Switch the active-view group. null = show all. */
+  setActiveGroup: (name: string | null) => void
+  /** Prune stale members (names not in the current schema). Returns
+   *  silently if no-op or group missing; mutates groups[name] in place. */
+  cleanGroup: (name: string) => void
+
   /** Re-read persisted state from the (possibly just-swapped) adapter. */
   hydrate: () => void
 }
@@ -82,6 +176,27 @@ interface State {
 const initialSql = storage.getItem(K_SQL) ?? samples[0].sql
 const initialTheme = readTheme()
 applyThemeAttr(initialTheme)
+const initialGroupsState = readGroupsState()
+
+// Shared helper: validate a group name. Returns the trimmed name on success
+// or null on rejection (with a console.warn explaining why). Caller treats
+// null as no-op — actions are idempotent and tolerant.
+function validGroupName(name: string, existing: Record<string, string[]>, kind: 'create' | 'rename'): string | null {
+  const n = (name ?? '').trim()
+  if (!n) {
+    console.warn(`[dbviz] ${kind} group: name is empty`)
+    return null
+  }
+  if (n.length > MAX_GROUP_NAME_LEN) {
+    console.warn(`[dbviz] ${kind} group: name exceeds ${MAX_GROUP_NAME_LEN} chars`)
+    return null
+  }
+  if (n in existing) {
+    console.warn(`[dbviz] ${kind} group: "${n}" already exists`)
+    return null
+  }
+  return n
+}
 
 export const useStore = create<State>((set) => ({
   sql: initialSql,
@@ -172,14 +287,107 @@ export const useStore = create<State>((set) => ({
         },
       }
     }),
+  // --- Groups: initial state ---
+  groups: initialGroupsState.groups,
+  activeGroup: initialGroupsState.activeGroup,
+  createGroup: (name) =>
+    set((s) => {
+      const n = validGroupName(name, s.groups, 'create')
+      if (n === null) return s
+      const next = { ...s.groups, [n]: [] }
+      writeGroupsState({ groups: next, activeGroup: s.activeGroup })
+      return { groups: next }
+    }),
+  renameGroup: (from, to) =>
+    set((s) => {
+      if (!(from in s.groups)) {
+        console.warn(`[dbviz] rename group: "${from}" not found`)
+        return s
+      }
+      const n = validGroupName(to, s.groups, 'rename')
+      if (n === null || n === from) return s
+      // Rebuild to preserve insertion order with `from` swapped for `n`.
+      const next: Record<string, string[]> = {}
+      for (const [k, v] of Object.entries(s.groups)) {
+        next[k === from ? n : k] = v
+      }
+      const nextActive = s.activeGroup === from ? n : s.activeGroup
+      writeGroupsState({ groups: next, activeGroup: nextActive })
+      return { groups: next, activeGroup: nextActive }
+    }),
+  deleteGroup: (name) =>
+    set((s) => {
+      if (!(name in s.groups)) return s
+      const next = { ...s.groups }
+      delete next[name]
+      // If the active view pointed at the deleted group, fall back to "all".
+      const nextActive = s.activeGroup === name ? null : s.activeGroup
+      writeGroupsState({ groups: next, activeGroup: nextActive })
+      return { groups: next, activeGroup: nextActive }
+    }),
+  addToGroup: (name, tables) =>
+    set((s) => {
+      if (!(name in s.groups)) {
+        console.warn(`[dbviz] addToGroup: "${name}" not found`)
+        return s
+      }
+      const current = s.groups[name]
+      const seen = new Set(current)
+      const added: string[] = []
+      for (const t of tables) {
+        if (typeof t !== 'string' || !t || seen.has(t)) continue
+        seen.add(t)
+        added.push(t)
+      }
+      if (added.length === 0) return s
+      const next = { ...s.groups, [name]: [...current, ...added] }
+      writeGroupsState({ groups: next, activeGroup: s.activeGroup })
+      return { groups: next }
+    }),
+  removeFromGroup: (name, table) =>
+    set((s) => {
+      if (!(name in s.groups)) return s
+      const current = s.groups[name]
+      if (!current.includes(table)) return s
+      const filtered = current.filter((t) => t !== table)
+      const next = { ...s.groups, [name]: filtered }
+      writeGroupsState({ groups: next, activeGroup: s.activeGroup })
+      return { groups: next }
+    }),
+  setActiveGroup: (name) =>
+    set((s) => {
+      // Allow null (clear), or any existing group name.
+      const ok = name === null || name in s.groups
+      if (!ok) {
+        console.warn(`[dbviz] setActiveGroup: "${name}" not found`)
+        return s
+      }
+      writeGroupsState({ groups: s.groups, activeGroup: name })
+      return { activeGroup: name }
+    }),
+  cleanGroup: (name) =>
+    set((s) => {
+      const current = s.groups[name]
+      if (!current) return s
+      const known = new Set(s.schema.tables.map((t) => t.name))
+      const cleaned = current.filter((t) => known.has(t))
+      if (cleaned.length === current.length) return s
+      const next = { ...s.groups, [name]: cleaned }
+      writeGroupsState({ groups: next, activeGroup: s.activeGroup })
+      return { groups: next }
+    }),
+
   hydrate: () =>
     set(() => {
       const th = readTheme()
       applyThemeAttr(th)
       const sql = storage.getItem(K_SQL)
+      const g = readGroupsState()
       return {
         commentMode: readCommentMode(),
         theme: th,
+        groups: g.groups,
+        activeGroup: g.activeGroup,
         ...(sql ? { sql, schema: parseSchema(sql) } : {}),
       }
     }),

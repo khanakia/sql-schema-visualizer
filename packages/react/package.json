@@ -23,7 +23,8 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean --external react --external react-dom --external @xyflow/react --external @khanakia/sql-schema-core && cp src/styles.css dist/styles.css",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@khanakia/sql-schema-core": "workspace:*",
@@ -42,7 +43,8 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "tsup": "^8.3.5",
-    "typescript": "~6.0.2"
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.6"
   },
   "publishConfig": {
     "access": "public"

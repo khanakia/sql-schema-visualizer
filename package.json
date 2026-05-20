@@ -22,7 +22,7 @@
   "homepage": "https://github.com/khanakia/sql-schema-visualizer",
   "scripts": {
     "dev": "pnpm --filter @khanakia/sql-schema-web dev",
-    "test": "pnpm --filter @khanakia/sql-schema-core test",
+    "test": "pnpm -r --filter \"./packages/*\" test",
     "build:libs": "pnpm --filter @khanakia/sql-schema-core build && pnpm --filter @khanakia/sql-schema-react build",
     "build:web": "pnpm --filter @khanakia/sql-schema-web build",
     "build": "pnpm run build:libs && pnpm run build:web",

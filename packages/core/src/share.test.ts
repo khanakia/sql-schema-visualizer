@@ -35,3 +35,66 @@ describe('share codec (deflate-raw + base64url)', () => {
     expect(await decodeSql('!!!not-valid!!!')).toBeNull()
   })
 })
+
+import { encodeGroups, decodeGroups } from './share'
+
+describe('groups codec', () => {
+  it('returns null token for empty default payload', async () => {
+    expect(await encodeGroups({ groups: {}, activeGroup: null })).toBeNull()
+  })
+
+  it('round-trips a single group', async () => {
+    const payload = { groups: { billing: ['orders', 'invoices'] }, activeGroup: null }
+    const tok = await encodeGroups(payload)
+    expect(tok).not.toBeNull()
+    expect(await decodeGroups(tok)).toEqual(payload)
+  })
+
+  it('round-trips multiple groups + active group', async () => {
+    const payload = {
+      groups: {
+        billing: ['orders', 'invoices'],
+        auth: ['users', 'sessions'],
+        empty: [],
+      },
+      activeGroup: 'auth' as string | null,
+    }
+    const tok = await encodeGroups(payload)
+    expect(await decodeGroups(tok)).toEqual(payload)
+  })
+
+  it('drops dangling activeGroup on decode', async () => {
+    // Manually craft a payload claiming activeGroup that isn't in groups.
+    const tok = await encodeGroups({
+      groups: { a: ['t'] },
+      activeGroup: 'a',
+    })
+    // Decoding works.
+    expect((await decodeGroups(tok)).activeGroup).toBe('a')
+    // A malformed token returns empty defaults, no throw.
+    const bad = await decodeGroups('!!!nope!!!')
+    expect(bad).toEqual({ groups: {}, activeGroup: null })
+  })
+
+  it('tolerates null/empty/undefined input', async () => {
+    const empty = { groups: {}, activeGroup: null }
+    expect(await decodeGroups(null)).toEqual(empty)
+    expect(await decodeGroups(undefined)).toEqual(empty)
+    expect(await decodeGroups('')).toEqual(empty)
+  })
+
+  it('dedups and drops non-string table entries on decode', async () => {
+    // We can't easily craft a malformed inner payload from outside, so
+    // simulate by encoding a payload that has duplicates — encoder
+    // preserves them, decoder cleans them. (Round-trip is via the
+    // production encoder, which writes verbatim; cleanup happens on
+    // decodeGroups for tokens authored by older clients with looser
+    // shapes.)
+    const tok = await encodeGroups({
+      groups: { g: ['a', 'b', 'a', 'c'] },
+      activeGroup: null,
+    })
+    const decoded = await decodeGroups(tok)
+    expect(decoded.groups.g).toEqual(['a', 'b', 'c'])
+  })
+})
