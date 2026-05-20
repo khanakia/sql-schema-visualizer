@@ -1,3 +1,4 @@
+import { useState, type ReactNode } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import type { Column } from '@khanakia/sql-schema-core'
 import { useStore } from '../store'
@@ -28,15 +29,36 @@ function Popover({ text }: { text: string }) {
   )
 }
 
-/** Wider markdown-aware popover for `/​* @doc *​/` descriptions.
- *  Tied to a `group/doc` parent (separate group name so it doesn't
- *  fight with the short-comment Popover, which lives on a plain
- *  `group` parent). pointer-events-auto so users can click links. */
-function MarkdownPopover({ body }: { body: string }) {
+/** Inline 📖 / 📝 badge that opens a wider markdown popover on hover.
+ *  Self-contained — uses React state instead of Tailwind named-group
+ *  classes, which can silently fail to render (Tailwind content-scan
+ *  may not pick up `group/doc` / `group-hover/doc:block` strings). */
+function DocBadge({
+  emoji,
+  body,
+  title,
+  className = '',
+}: {
+  emoji: ReactNode
+  body: string
+  title: string
+  className?: string
+}) {
+  const [open, setOpen] = useState(false)
   return (
-    <div className="absolute left-full top-0 z-50 ml-2 hidden max-h-72 w-80 overflow-y-auto rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-[var(--text)] shadow-xl group-hover/doc:block">
-      {renderMarkdown(body)}
-    </div>
+    <span
+      className={`relative inline-flex cursor-help text-[11px] text-purple-300 ${className}`}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      title={title}
+    >
+      {emoji}
+      {open && (
+        <div className="absolute left-full top-0 z-50 ml-2 max-h-72 w-80 overflow-y-auto rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-[var(--text)] shadow-xl">
+          {renderMarkdown(body)}
+        </div>
+      )}
+    </span>
   )
 }
 
@@ -93,16 +115,11 @@ export function TableNode({ data, selected }: NodeProps) {
             <span className="text-[9px] text-purple-400">●</span>
           )}
           {d.tableDescription && (
-            // 📖 — table-level /* @doc */ markdown body. Wrapped in a
-            // `group` container with its own MarkdownPopover so it
-            // doesn't fight with the row-level comment popover.
-            <span
-              className="group/doc relative text-[11px] text-purple-300"
-              title="Open table description (hover for preview)"
-            >
-              📖
-              <MarkdownPopover body={d.tableDescription} />
-            </span>
+            <DocBadge
+              emoji="📖"
+              body={d.tableDescription}
+              title="Hover for the table description"
+            />
           )}
         </span>
         <span className="text-[10px] text-[var(--text-soft)] tabular-nums">
@@ -211,15 +228,12 @@ export function TableNode({ data, selected }: NodeProps) {
                     </span>
                   )}
                   {c.description && (
-                    // 📝 — column-level /* @doc */ markdown. Same
-                    // hover-popover affordance as the table 📖.
-                    <span
-                      className="group/doc relative ml-1 text-[10px] text-purple-300"
-                      title="Hover for column description"
-                    >
-                      📝
-                      <MarkdownPopover body={c.description} />
-                    </span>
+                    <DocBadge
+                      emoji="📝"
+                      body={c.description}
+                      title="Hover for the column description"
+                      className="ml-1 text-[10px]"
+                    />
                   )}
                   {/* UNIQUE glyph — skipped on PK rows since PKs are
                       implicitly unique. Tooltip lists the partner
