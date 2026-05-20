@@ -221,19 +221,25 @@ export function TableNode({ data, selected }: NodeProps) {
         })}
         {/* Composite (multi-column) UNIQUE constraints. Shows "these
             columns are unique together" — the per-row `U` glyph can't
-            convey grouping on its own. One line per constraint. */}
+            convey grouping on its own. One line per constraint;
+            truncated when long, but a hover popover shows the full
+            tuple (reuses the same Popover the column comments use). */}
         {d.compositeUniques && d.compositeUniques.length > 0 && (
           <div className="border-t border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-1">
-            {d.compositeUniques.map((tuple, i) => (
-              <div
-                key={`uq-${i}`}
-                className="truncate text-[10px] text-emerald-300/90"
-                title={`UNIQUE (${tuple.join(', ')})`}
-              >
-                <span className="mr-1 text-emerald-400/70">U</span>
-                ({tuple.join(', ')})
-              </div>
-            ))}
+            {d.compositeUniques.map((tuple, i) => {
+              const full = `UNIQUE (${tuple.join(', ')})`
+              return (
+                <div
+                  key={`uq-${i}`}
+                  className="group relative flex items-center text-[10px] text-emerald-300/90"
+                  title={full}
+                >
+                  <span className="mr-1 shrink-0 text-emerald-400/70">U</span>
+                  <span className="truncate">({tuple.join(', ')})</span>
+                  <Popover text={full} />
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
