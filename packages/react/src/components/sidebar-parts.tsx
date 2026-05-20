@@ -168,6 +168,9 @@ export function GroupsPanel({ className = '' }: { className?: string }) {
   const groups = useStore((s) => s.groups)
   const activeGroup = useStore((s) => s.activeGroup)
   const tables = useStore((s) => s.schema.tables)
+  const derivedGroups = useStore(
+    (s) => s.schema.groupAnnotations ?? {},
+  )
   const createGroup = useStore((s) => s.createGroup)
   const deleteGroup = useStore((s) => s.deleteGroup)
   const renameGroup = useStore((s) => s.renameGroup)
@@ -464,6 +467,64 @@ export function GroupsPanel({ className = '' }: { className?: string }) {
           </div>
         )
       })}
+
+      {/* Derived groups from `-- @group:` SQL annotations. Read-only:
+          membership comes from SQL, not the UI. Only affordance is the
+          👁 toggle to use them as a filter. Edit them by editing SQL. */}
+      {Object.entries(derivedGroups).length > 0 && (
+        <div className="border-t border-[var(--border-soft)] pt-1">
+          <div className="px-4 py-1 text-[10px] uppercase tracking-wide text-[var(--text-soft)]">
+            From SQL annotations
+          </div>
+          {Object.entries(derivedGroups).map(([name, members]) => {
+            const total = members.length
+            const visible = members.filter((m) => knownTables.has(m)).length
+            // A user-managed group with the same name shadows the derived
+            // one in look-up; flag that in the row title so it isn't
+            // confusing.
+            const shadowed = name in groups
+            const isActive = activeGroup === name
+            return (
+              <div
+                key={`derived-${name}`}
+                className={`flex items-center gap-1.5 px-4 py-1 text-xs ${
+                  isActive
+                    ? 'bg-purple-500/15 text-[var(--text-strong)]'
+                    : 'text-[var(--text)]'
+                }`}
+                title={
+                  shadowed
+                    ? `A user-managed group "${name}" shadows this SQL annotation. The user group wins.`
+                    : 'Derived from `-- @group:` SQL annotation. Edit the SQL to change membership.'
+                }
+              >
+                <button
+                  type="button"
+                  onClick={() => setActiveGroup(isActive ? null : name)}
+                  className="text-[13px] leading-none"
+                  title={isActive ? 'Clear filter' : 'View only this group'}
+                  disabled={shadowed}
+                >
+                  {isActive ? '👁' : '◯'}
+                </button>
+                <span className="flex-1 truncate font-medium">
+                  <span className="mr-1 text-[var(--text-soft)]">📌</span>
+                  {name}
+                  <span className="ml-1.5 text-[10px] text-[var(--text-soft)]">
+                    {visible !== total ? `${visible}/${total}` : total}
+                  </span>
+                </span>
+                <span
+                  className="text-[10px] text-[var(--text-soft)]"
+                  title="Derived from SQL — read-only"
+                >
+                  SQL
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

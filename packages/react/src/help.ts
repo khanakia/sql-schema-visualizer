@@ -102,6 +102,13 @@ export const defaultHelpEntries: HelpEntry[] = [
     keywords: ['filter', 'focus', 'view only', 'hide other', 'subset'],
   },
   {
+    id: 'groups-from-sql',
+    section: 'Multi-select & groups',
+    title: 'Auto-create groups from SQL annotations',
+    body: 'Add a comment line `-- @group: billing` (or multiple: `-- @group: billing, reporting`) IMMEDIATELY ABOVE a CREATE TABLE statement. On every reparse the visualizer derives those groups and lists them in the Groups tab with a 📌 SQL badge. They are read-only — to change membership, edit the SQL. User-managed and SQL-derived groups can coexist.',
+    keywords: ['annotation', '@group', 'sql comment', 'auto', 'derived'],
+  },
+  {
     id: 'groups-clean',
     section: 'Multi-select & groups',
     title: 'Clean up stale group members',

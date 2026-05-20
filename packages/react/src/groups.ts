@@ -10,6 +10,11 @@ import type { Schema } from '@khanakia/sql-schema-core'
  * (the "show all" state) returns null — callers should treat null as
  * "no filter; show everything".
  *
+ * Look-up tries user-managed `groups` first, then `schema.groupAnnotations`
+ * (derived from `-- @group:` SQL annotations). User groups win on name
+ * collision so a manual override is possible — but the convention is
+ * to keep the two name-spaces distinct.
+ *
  * Filtering applies after the schema intersection: a group can keep a
  * stale member (e.g. table was removed from SQL) but it just won't be
  * in the returned set — the storage entry stays, so re-adding the
@@ -21,7 +26,8 @@ export function computeVisibleSet(
   activeGroup: string | null,
 ): Set<string> | null {
   if (!activeGroup) return null
-  const members = groups[activeGroup]
+  const members =
+    groups[activeGroup] ?? schema.groupAnnotations?.[activeGroup]
   if (!members) return null
   const known = new Set(schema.tables.map((t) => t.name))
   return new Set(members.filter((m) => known.has(m)))

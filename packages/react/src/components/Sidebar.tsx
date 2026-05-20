@@ -25,7 +25,14 @@ export function Sidebar({
   showHeader = true,
 }: SchemaSidebarProps = {}) {
   const tableCount = useStore((s) => s.schema.tables.length)
-  const groupCount = useStore((s) => Object.keys(s.groups).length)
+  // Tab badge counts user groups + derived `-- @group:` SQL annotations
+  // (deduped by name; user group shadows derived on collision).
+  const groupCount = useStore((s) => {
+    const userNames = new Set(Object.keys(s.groups))
+    for (const n of Object.keys(s.schema.groupAnnotations ?? {}))
+      userNames.add(n)
+    return userNames.size
+  })
   const activeGroup = useStore((s) => s.activeGroup)
   const [tab, setTab] = useState<'tables' | 'groups' | 'sql'>('tables')
 

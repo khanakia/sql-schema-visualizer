@@ -200,26 +200,27 @@ CREATE TABLE cities (
     id: 'groups-demo',
     name: 'Mini ERP (groups demo)',
     dialect: 'PostgreSQL',
-    sql: `-- 12-table schema with three obvious clusters. Open the sidebar
--- "Groups" panel and create:
---   auth    -> users, sessions, api_keys
---   content -> posts, post_tags, tags, comments
---   billing -> customers, plans, subscriptions, invoices, invoice_items
--- Then click the 👁 icon on a group to filter the canvas to it.
+    sql: `-- 12-table schema with three obvious clusters. The \`-- @group:\`
+-- annotations below auto-create the groups on the Groups tab (look
+-- for the 📌 SQL badge) — no manual setup needed. \`users\` is in two
+-- groups (auth + content) to show multi-membership.
 
 -- ── auth ──────────────────────────────────────────────────────────
+-- @group: auth, content
 CREATE TABLE users (
   id          SERIAL PRIMARY KEY,
   email       VARCHAR(255) NOT NULL UNIQUE,
   full_name   VARCHAR(120) NOT NULL,
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
+-- @group: auth
 CREATE TABLE sessions (
   id          SERIAL PRIMARY KEY,
   user_id     INTEGER NOT NULL REFERENCES users(id),
   token       VARCHAR(64) NOT NULL UNIQUE,
   expires_at  TIMESTAMPTZ NOT NULL
 );
+-- @group: auth
 CREATE TABLE api_keys (
   id          SERIAL PRIMARY KEY,
   user_id     INTEGER NOT NULL REFERENCES users(id),
@@ -229,6 +230,7 @@ CREATE TABLE api_keys (
 );
 
 -- ── content ───────────────────────────────────────────────────────
+-- @group: content
 CREATE TABLE posts (
   id         SERIAL PRIMARY KEY,
   author_id  INTEGER NOT NULL REFERENCES users(id),
@@ -236,15 +238,18 @@ CREATE TABLE posts (
   body       TEXT NOT NULL,
   published  BOOLEAN NOT NULL DEFAULT false
 );
+-- @group: content
 CREATE TABLE tags (
   id    SERIAL PRIMARY KEY,
   slug  VARCHAR(40) NOT NULL UNIQUE
 );
+-- @group: content
 CREATE TABLE post_tags (
   post_id  INTEGER NOT NULL REFERENCES posts(id),
   tag_id   INTEGER NOT NULL REFERENCES tags(id),
   PRIMARY KEY (post_id, tag_id)
 );
+-- @group: content
 CREATE TABLE comments (
   id          SERIAL PRIMARY KEY,
   post_id     INTEGER NOT NULL REFERENCES posts(id),
@@ -255,17 +260,20 @@ CREATE TABLE comments (
 );
 
 -- ── billing ───────────────────────────────────────────────────────
+-- @group: billing
 CREATE TABLE plans (
   id            SERIAL PRIMARY KEY,
   code          VARCHAR(40) NOT NULL UNIQUE,   -- free|pro|team|enterprise
   monthly_cents INTEGER NOT NULL
 );
+-- @group: billing
 CREATE TABLE customers (
   id        SERIAL PRIMARY KEY,
   user_id   INTEGER NOT NULL REFERENCES users(id),
   company   VARCHAR(120),
   vat_id    VARCHAR(40)
 );
+-- @group: billing
 CREATE TABLE subscriptions (
   id           SERIAL PRIMARY KEY,
   customer_id  INTEGER NOT NULL REFERENCES customers(id),
@@ -273,12 +281,14 @@ CREATE TABLE subscriptions (
   started_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   cancelled_at TIMESTAMPTZ                    -- nullable: still active
 );
+-- @group: billing
 CREATE TABLE invoices (
   id            SERIAL PRIMARY KEY,
   subscription_id INTEGER NOT NULL REFERENCES subscriptions(id),
   total_cents   INTEGER NOT NULL,
   paid_at       TIMESTAMPTZ                   -- nullable: unpaid
 );
+-- @group: billing
 CREATE TABLE invoice_items (
   id          SERIAL PRIMARY KEY,
   invoice_id  INTEGER NOT NULL REFERENCES invoices(id),
@@ -485,6 +495,7 @@ CREATE TABLE loans (
 -- zero. Money lives as INTEGER cents (never float). The shape behind
 -- Stripe/Wise/Mercury.
 
+-- @group: customer
 CREATE TABLE customers (
   id          SERIAL PRIMARY KEY,
   full_name   VARCHAR(120) NOT NULL,
@@ -493,6 +504,7 @@ CREATE TABLE customers (
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
 
+-- @group: customer, ledger
 CREATE TABLE accounts (
   id          SERIAL PRIMARY KEY,
   customer_id INTEGER REFERENCES customers(id),         -- nullable: internal accounts (clearing, fees)
@@ -502,6 +514,7 @@ CREATE TABLE accounts (
   closed_at   TIMESTAMPTZ                               -- nullable: still open
 );
 
+-- @group: ledger
 CREATE TABLE journal_entries (
   id           SERIAL PRIMARY KEY,
   occurred_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -509,6 +522,7 @@ CREATE TABLE journal_entries (
   external_ref VARCHAR(80)                              -- nullable: link to source event, e.g. Stripe charge id
 );
 
+-- @group: ledger
 CREATE TABLE entry_lines (   -- the actual debits/credits
   id                 SERIAL PRIMARY KEY,
   journal_entry_id   INTEGER NOT NULL REFERENCES journal_entries(id),
@@ -516,6 +530,7 @@ CREATE TABLE entry_lines (   -- the actual debits/credits
   amount_cents       BIGINT NOT NULL    -- signed; debits positive, credits negative; sum per journal_entry must be 0
 );
 
+-- @group: ledger
 CREATE TABLE transfers (   -- higher-level "send money A -> B" wrapper
   id                  SERIAL PRIMARY KEY,
   from_account_id     INTEGER NOT NULL REFERENCES accounts(id),
@@ -525,6 +540,7 @@ CREATE TABLE transfers (   -- higher-level "send money A -> B" wrapper
   status              VARCHAR(20) NOT NULL DEFAULT 'pending'  -- pending|posted|reversed
 );
 
+-- @group: reporting
 CREATE TABLE statements (   -- precomputed monthly view per account
   id            SERIAL PRIMARY KEY,
   account_id    INTEGER NOT NULL REFERENCES accounts(id),

@@ -356,8 +356,12 @@ export const useStore = create<State>((set) => ({
     }),
   setActiveGroup: (name) =>
     set((s) => {
-      // Allow null (clear), or any existing group name.
-      const ok = name === null || name in s.groups
+      // Allow null (clear), an existing user-managed group, OR a
+      // derived group from `-- @group:` SQL annotations.
+      const ok =
+        name === null ||
+        name in s.groups ||
+        name in (s.schema.groupAnnotations ?? {})
       if (!ok) {
         console.warn(`[dbviz] setActiveGroup: "${name}" not found`)
         return s

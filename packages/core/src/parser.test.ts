@@ -159,3 +159,79 @@ describe('parseSchema — resilience', () => {
     expect(b).toEqual(a)
   })
 })
+
+describe('-- @group: annotations', () => {
+  it('captures a single-group annotation on the line above CREATE', () => {
+    const s = parseSchema(`
+-- @group: billing
+CREATE TABLE invoices (id INT PRIMARY KEY);
+`)
+    expect(s.groupAnnotations).toEqual({ billing: ['invoices'] })
+  })
+
+  it('supports multi-membership via comma-separated names', () => {
+    const s = parseSchema(`
+-- @group: billing, reporting, finance
+CREATE TABLE invoices (id INT PRIMARY KEY);
+`)
+    expect(s.groupAnnotations).toEqual({
+      billing: ['invoices'],
+      reporting: ['invoices'],
+      finance: ['invoices'],
+    })
+  })
+
+  it('accumulates multiple comment lines for the next table', () => {
+    const s = parseSchema(`
+-- @group: a
+-- @group: b
+CREATE TABLE x (id INT PRIMARY KEY);
+`)
+    expect(s.groupAnnotations).toEqual({ a: ['x'], b: ['x'] })
+  })
+
+  it('groups multiple tables under the same name in declaration order', () => {
+    const s = parseSchema(`
+-- @group: auth
+CREATE TABLE users (id INT PRIMARY KEY);
+-- @group: auth
+CREATE TABLE sessions (id INT PRIMARY KEY, user_id INT);
+-- @group: auth
+CREATE TABLE api_keys (id INT PRIMARY KEY, user_id INT);
+`)
+    expect(s.groupAnnotations.auth).toEqual(['users', 'sessions', 'api_keys'])
+  })
+
+  it('does not treat normal comments as annotations', () => {
+    const s = parseSchema(`
+CREATE TABLE plain (id INT PRIMARY KEY);   -- Just a regular description.
+`)
+    expect(s.groupAnnotations).toEqual({})
+    // Same-line trailing comment IS captured as the table comment
+    // (proves a normal comment doesn't get swallowed by annotation logic).
+    expect(s.tables[0].comment).toBe('Just a regular description.')
+  })
+
+  it('drops annotations not followed by a CREATE TABLE', () => {
+    const s = parseSchema(`
+-- @group: orphan
+SELECT 1;
+CREATE TABLE x (id INT PRIMARY KEY);
+`)
+    expect(s.groupAnnotations).toEqual({})
+  })
+
+  it('returns empty object when no annotations present', () => {
+    const s = parseSchema('CREATE TABLE t (id INT PRIMARY KEY);')
+    expect(s.groupAnnotations).toEqual({})
+  })
+
+  it('ignores group names that are empty or > 60 chars', () => {
+    const long = 'x'.repeat(61)
+    const s = parseSchema(`
+-- @group: ,  , ${long}, ok
+CREATE TABLE t (id INT PRIMARY KEY);
+`)
+    expect(s.groupAnnotations).toEqual({ ok: ['t'] })
+  })
+})

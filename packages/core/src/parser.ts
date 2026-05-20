@@ -31,6 +31,16 @@ export interface Schema {
   tables: Table[]
   foreignKeys: ForeignKey[]
   warnings: string[]
+  /**
+   * Read-only groups derived from `-- @group: <name>` (or
+   * `-- @group: a, b`) line comments placed IMMEDIATELY ABOVE a
+   * `CREATE TABLE` statement (or on the same line as it). A table may
+   * appear in multiple groups. The map preserves the order in which
+   * each group's first annotation was encountered. Empty `{}` when
+   * no annotations were used. These coexist with the user-managed
+   * groups in the React store; they are NOT editable via UI.
+   */
+  groupAnnotations: Record<string, string[]>
 }
 
 // --- helpers -------------------------------------------------------------
@@ -185,25 +195,90 @@ const COL_HEAD = /^\s*("[^"]+"|`[^`]+`|\[[^\]]+\]|[a-zA-Z_][\w$]*)/
  * A comment on a column line binds to that column; a comment-only line
  * continues the previous column (or the table when no column seen yet).
  */
-function associateComments(input: string, byName: Map<string, Table>): void {
+/** Match a "@group: name1, name2, …" annotation inside a comment body.
+ *  Returns the parsed group names (trimmed, non-empty), or null if the
+ *  comment isn't a group annotation. Comments that contain anything
+ *  besides the annotation are left as regular table/column comments. */
+function matchGroupAnnotation(comment: string): string[] | null {
+  const m = comment.match(/^@group\s*:\s*(.+?)\s*$/i)
+  if (!m) return null
+  const names = m[1]
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && s.length <= 60)
+  return names.length > 0 ? names : null
+}
+
+function associateComments(
+  input: string,
+  byName: Map<string, Table>,
+  groupAnnotations: Record<string, string[]>,
+): void {
   const lines = input.split(/\r?\n/)
   let table: Table | null = null
   let col: Column | null = null
+  // Group names accumulated from comment-only lines that precede the
+  // next CREATE TABLE. Reset after each CREATE or at a statement end.
+  let pendingGroups: string[] = []
   const add = (cur: string | undefined, next: string) =>
     cur ? `${cur} ${next}` : next
+  const recordGroups = (names: string[], tname: string) => {
+    for (const g of names) {
+      const arr = groupAnnotations[g] ?? (groupAnnotations[g] = [])
+      if (!arr.includes(tname)) arr.push(tname)
+    }
+  }
 
   for (const line of lines) {
     const { code, comment } = splitLineComment(line)
     const lc = code.toLowerCase()
 
+    // `@group:` annotation? Pick it up regardless of whether we're
+    // currently inside a CREATE block — the previous statement may
+    // have ended on the same line with `;`, leaving `table` stale.
+    // Recognised annotations are consumed (don't fall through to the
+    // comment-attach branch so they never become table/column comments).
+    if (comment && !code.trim()) {
+      const groups = matchGroupAnnotation(comment)
+      if (groups) {
+        pendingGroups.push(...groups)
+        continue
+      }
+      // Non-annotation comment-only line BEFORE a CREATE TABLE has no
+      // home — drop pending groups guarded by a real CREATE follow-up.
+      if (!table) continue
+    }
+
     const create = lc.match(/create\s+(?:\w+\s+)*table\s+(?:if\s+not\s+exists\s+)?([^\s(]+)/)
     if (create) {
-      table = byName.get(cleanIdent(create[1])) ?? null
+      const tname = cleanIdent(create[1])
+      table = byName.get(tname) ?? null
       col = null
-      if (table && comment) table.comment = add(table.comment, comment)
+      if (table) {
+        // Same-line @group: annotation (e.g. `CREATE TABLE x ( -- @group: foo`).
+        if (comment) {
+          const groups = matchGroupAnnotation(comment)
+          if (groups) pendingGroups.push(...groups)
+          else table.comment = add(table.comment, comment)
+        }
+        if (pendingGroups.length) recordGroups(pendingGroups, tname)
+      }
+      pendingGroups = []
+      // Single-line CREATE … ; — reset immediately so a follow-up
+      // `-- @group:` line on the next physical line attributes to the
+      // NEXT table, not this one.
+      if (code.includes(';')) {
+        table = null
+        col = null
+      }
       continue
     }
-    if (!table) continue
+    if (!table) {
+      // If a CREATE didn't follow, drop accumulated group annotations on
+      // a non-comment line — they were meant for a table we never saw.
+      if (code.trim()) pendingGroups = []
+      continue
+    }
 
     const head = code.match(COL_HEAD)
     const ident = head ? cleanIdent(head[1]) : ''
@@ -224,6 +299,7 @@ function associateComments(input: string, byName: Map<string, Table>): void {
     if (code.includes(';')) {
       table = null
       col = null
+      pendingGroups = []
     }
   }
 }
@@ -235,8 +311,9 @@ export function parseSchema(input: string): Schema {
   const tables: Table[] = []
   const foreignKeys: ForeignKey[] = []
   const tableByName = new Map<string, Table>()
+  const groupAnnotations: Record<string, string[]> = {}
 
-  if (!input.trim()) return { tables, foreignKeys, warnings }
+  if (!input.trim()) return { tables, foreignKeys, warnings, groupAnnotations }
 
   const sql = stripComments(input)
   const statements = splitStatements(sql)
@@ -371,7 +448,7 @@ export function parseSchema(input: string): Schema {
     if (c && !c.fk) c.fk = { table: fk.toTable, column: fk.toColumn }
   }
 
-  associateComments(input, tableByName)
+  associateComments(input, tableByName, groupAnnotations)
 
   if (tables.length === 0)
     warnings.push('No CREATE TABLE statements found in the input.')
@@ -384,5 +461,5 @@ export function parseSchema(input: string): Schema {
       )
   }
 
-  return { tables, foreignKeys, warnings }
+  return { tables, foreignKeys, warnings, groupAnnotations }
 }
