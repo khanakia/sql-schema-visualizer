@@ -41,6 +41,10 @@ Most SQL schema visualization tools are either paid, require a live database con
 - **Follow-the-FK navigation** — click the `↗` on any FK column or the edge itself to jump to the referenced table; navigation history with `⌥/Alt+←` or `⌘/Ctrl+[` and a visible `← Back` button.
 - **Table groups** — name a subset of tables (e.g. `billing`, `auth`) and click to filter the canvas to just those; group memberships persist locally and travel in the share URL. Multi-select tables on the canvas (Shift/⌘-click or drag-rectangle) and right-click to bulk-add the whole selection to a group in one shot.
 - **`-- @group:` SQL annotations** — drop `-- @group: billing, reporting` above a `CREATE TABLE` and the visualizer auto-creates a read-only group from the SQL (a table can belong to multiple groups). Surfaces with a 📌 SQL badge in the Groups sidebar tab.
+- **`/* @doc */` rich descriptions** — wrap multi-paragraph markdown in `/* @doc … */` above a `CREATE TABLE` (table-level) or above a column line inside the parens (column-level). The diagram shows a 📖 (table) or 📝 (column) badge — hover for a portal-rendered preview popover, click to open a wider slide-in drawer with the full rendered markdown. Headings, bold, italic, inline + fenced code, lists, and links all render. Multiple `@doc` blocks for the same target concatenate.
+- **Notes sidebar tab** — fourth tab with two modes: *By table* (auto-tracks the focused table; shows table + per-column descriptions with click-to-open-in-drawer buttons) and *📝 All field notes* (every column-level `@doc` across the schema in one filterable list).
+- **Search digs into descriptions** — the sidebar search box matches column names, short `--` comments, *and* `@doc` body text. Type a phrase from any column's prose to find it.
+- **Resizable sidebar** — drag the right edge of the sidebar to resize (240–700px); width persists locally.
 - **Multi-select & right-click menu** — Shift/⌘-click to multi-select; right-click any selected table for a `Groups ▸` submenu (toggle membership, "+ New group from N tables…").
 - **Searchable help modal** — `?` opens an inline help modal that indexes every feature (try "multi", "fk", "filter", "backup", "annotation").
 - **Backup / restore** — `⤓ Export backup` downloads a JSON snapshot of SQL + groups + preferences; `⤴ Import backup` restores it after a confirm. Versioned format; tolerant decoder.
@@ -90,6 +94,20 @@ import '@khanakia/sql-schema-react/styles.css'
 
 <SchemaVisualizer sql="CREATE TABLE users ( id int PRIMARY KEY );" />
 ```
+
+## Agent skills (skills.sh)
+
+The repo ships an installable [skills.sh](https://skills.sh) skill that teaches your coding agent (Claude Code, Codex, Cursor, OpenCode, …) how to annotate a `.sql` file with `-- @group:` and `/* @doc */` markdown so the visualizer renders it richly. One command to add it to any project:
+
+```bash
+# install into the current project
+npx skills add khanakia/sql-schema-visualizer
+
+# or globally, for Claude Code only
+npx skills add khanakia/sql-schema-visualizer --skill sql-prep -g -a claude-code -y
+```
+
+Skill source lives in [`skills/sql-prep/`](skills/sql-prep/SKILL.md) — see [`skills/README.md`](skills/README.md) for the full list.
 
 ## Quick start (development)
 

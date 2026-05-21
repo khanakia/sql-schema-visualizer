@@ -25,12 +25,17 @@ function splitBlocks(src: string): string[] {
   const out: string[] = []
   let buf: string[] = []
   let inFence = false
+  const flush = () => {
+    if (buf.length) {
+      out.push(buf.join('\n'))
+      buf = []
+    }
+  }
   for (const line of lines) {
     if (line.startsWith('```')) {
       buf.push(line)
       if (inFence) {
-        out.push(buf.join('\n'))
-        buf = []
+        flush()
         inFence = false
       } else {
         inFence = true
@@ -42,15 +47,20 @@ function splitBlocks(src: string): string[] {
       continue
     }
     if (line.trim() === '') {
-      if (buf.length) {
-        out.push(buf.join('\n'))
-        buf = []
-      }
+      flush()
+      continue
+    }
+    // Heading line: always its own block, even without surrounding
+    // blank lines (otherwise it'd glue to the next paragraph and the
+    // heading regex fails).
+    if (/^#{1,6}\s+/.test(line)) {
+      flush()
+      out.push(line)
       continue
     }
     buf.push(line)
   }
-  if (buf.length) out.push(buf.join('\n'))
+  flush()
   return out
 }
 

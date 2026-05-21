@@ -5,6 +5,7 @@
 import { useMemo, useState } from 'react'
 import { useStore } from '../store'
 import { ExportBackupButton, ImportBackupButton } from './Backup'
+import { renderMarkdown } from '../markdown'
 
 /** Search input — filters the store query; Enter jumps to the first hit. */
 export function SchemaSearch({
@@ -24,7 +25,11 @@ export function SchemaSearch({
     for (const t of schema.tables) {
       if (t.name.toLowerCase().includes(q)) return focusTable(t.name)
       const col = q
-        ? t.columns.find((c) => c.name.toLowerCase().includes(q))
+        ? t.columns.find((c) =>
+            c.name.toLowerCase().includes(q) ||
+            (c.comment ?? '').toLowerCase().includes(q) ||
+            (c.description ?? '').toLowerCase().includes(q),
+          )
         : undefined
       if (col) return focusTable(t.name, col.name)
     }
@@ -67,8 +72,15 @@ export function TableList({ className = '' }: { className?: string }) {
     .map((t) => ({
       t,
       nameHit: t.name.toLowerCase().includes(q),
+      // Match columns by name, short comment, OR @doc description body —
+      // lets the search box also dig into long-form prose.
       colHits: q
-        ? t.columns.filter((c) => c.name.toLowerCase().includes(q))
+        ? t.columns.filter(
+            (c) =>
+              c.name.toLowerCase().includes(q) ||
+              (c.comment ?? '').toLowerCase().includes(q) ||
+              (c.description ?? '').toLowerCase().includes(q),
+          )
         : [],
     }))
     .filter(({ nameHit, colHits }) => !q || nameHit || colHits.length > 0)
@@ -530,6 +542,246 @@ export function GroupsPanel({ className = '' }: { className?: string }) {
 }
 
 /** « button that hides the sidebar (store.sidebarOpen). */
+/**
+ * Notes panel — shows the markdown body of `/​* @doc *​/` annotations
+ * for the currently-focused table (or a manual pick via dropdown).
+ * Read-only: edit by changing the SQL. Lists table-level description
+ * first, then per-column descriptions in declaration order.
+ */
+export function NotesPanel({ className = '' }: { className?: string }) {
+  const tables = useStore((s) => s.schema.tables)
+  const focus = useStore((s) => s.focus)
+  const focusTable = useStore((s) => s.focusTable)
+  const openDocDrawer = useStore((s) => s.openDocDrawer)
+  // Two modes: a single-table reader (default; auto-tracks the
+  // focused table) and a global index of every column with an @doc
+  // annotation across the whole schema (useful when you want to
+  // scan / search field notes without jumping between tables).
+  const [mode, setMode] = useState<'table' | 'all-fields'>('table')
+  const [filter, setFilter] = useState('')
+  const [manualPick, setManualPick] = useState<string | null>(null)
+  const activeName = manualPick ?? focus?.table ?? tables[0]?.name ?? ''
+  const t = tables.find((x) => x.name === activeName)
+
+  if (manualPick && !tables.some((x) => x.name === manualPick)) {
+    queueMicrotask(() => setManualPick(null))
+  }
+
+  // Flatten every column with a description across the schema for the
+  // "all field notes" view. Cheap; descriptions are sparse in practice.
+  const allFieldNotes = useMemo(() => {
+    const out: Array<{ table: string; column: string; type: string; body: string }> = []
+    for (const tab of tables) {
+      for (const c of tab.columns) {
+        if (c.description) {
+          out.push({ table: tab.name, column: c.name, type: c.type, body: c.description })
+        }
+      }
+    }
+    return out
+  }, [tables])
+
+  const q = filter.trim().toLowerCase()
+  const filteredFieldNotes = useMemo(
+    () =>
+      !q
+        ? allFieldNotes
+        : allFieldNotes.filter(
+            (n) =>
+              n.table.toLowerCase().includes(q) ||
+              n.column.toLowerCase().includes(q) ||
+              n.body.toLowerCase().includes(q),
+          ),
+    [allFieldNotes, q],
+  )
+
+  const docColumns = useMemo(
+    () => (t ? t.columns.filter((c) => c.description) : []),
+    [t],
+  )
+  const hasAnyDoc = !!t?.description || docColumns.length > 0
+
+  return (
+    <div className={`flex flex-col overflow-hidden ${className}`}>
+      {/* Mode toggle: per-table view vs all-fields index. */}
+      <div className="flex gap-1 border-b border-[var(--border-soft)] px-4 py-2 text-[11px]">
+        <button
+          type="button"
+          onClick={() => setMode('table')}
+          className={`flex-1 rounded px-2 py-1 ${
+            mode === 'table'
+              ? 'bg-purple-500/15 text-purple-200'
+              : 'text-[var(--text-soft)] hover:text-[var(--text)]'
+          }`}
+        >
+          By table
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('all-fields')}
+          className={`flex-1 rounded px-2 py-1 ${
+            mode === 'all-fields'
+              ? 'bg-purple-500/15 text-purple-200'
+              : 'text-[var(--text-soft)] hover:text-[var(--text)]'
+          }`}
+          title="Every column-level @doc across the schema"
+        >
+          📝 All field notes ({allFieldNotes.length})
+        </button>
+      </div>
+
+      {mode === 'table' ? (
+        <>
+          <div className="border-b border-[var(--border-soft)] px-4 py-2">
+            <select
+              value={activeName}
+              onChange={(e) => {
+                setManualPick(e.target.value)
+                focusTable(e.target.value)
+              }}
+              className="w-full rounded border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--text)] outline-none focus:border-purple-500"
+            >
+              {tables.map((tab) => (
+                <option key={tab.name} value={tab.name}>
+                  {tab.name}
+                  {tab.description || tab.columns.some((c) => c.description) ? ' 📖' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 py-3 text-xs">
+            {!t && <p className="text-[var(--text-soft)]">No table selected.</p>}
+            {t && !hasAnyDoc && (
+              <p className="text-[var(--text-soft)]">
+                No <code>/* @doc */</code> annotations on <strong>{t.name}</strong>
+                . Add a <code>/* @doc … */</code> block above the CREATE TABLE
+                (table-level) or above a column line (column-level) to write
+                markdown here.
+              </p>
+            )}
+            {t?.description && (
+              <section className="mb-4">
+                <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wide text-[var(--text-soft)]">
+                  <span>Table — {t.name}</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openDocDrawer({ kind: 'table', table: t.name, body: t.description! })
+                    }
+                    title="Open in drawer"
+                    className="rounded px-1.5 py-0.5 normal-case hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+                  >
+                    ⤢
+                  </button>
+                </div>
+                <div className="rounded border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-2">
+                  {renderMarkdown(t.description)}
+                </div>
+              </section>
+            )}
+            {docColumns.length > 0 && (
+              <section>
+                <div className="mb-1 text-[10px] uppercase tracking-wide text-[var(--text-soft)]">
+                  Columns
+                </div>
+                <div className="space-y-2">
+                  {docColumns.map((c) => (
+                    <div
+                      key={c.name}
+                      className="rounded border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-2"
+                    >
+                      <div className="mb-1 flex items-center justify-between">
+                        <div className="font-semibold text-[var(--text-strong)]">
+                          {c.name}
+                          <span className="ml-1 text-[10px] uppercase text-[var(--text-soft)]">
+                            {c.type}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openDocDrawer({
+                              kind: 'column',
+                              table: t!.name,
+                              column: c.name,
+                              body: c.description!,
+                            })
+                          }
+                          title="Open in drawer"
+                          className="rounded px-1.5 py-0.5 text-[10px] text-[var(--text-soft)] hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                        >
+                          ⤢
+                        </button>
+                      </div>
+                      {renderMarkdown(c.description!)}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="border-b border-[var(--border-soft)] px-4 py-2">
+            <input
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Filter field notes…"
+              className="w-full rounded border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--text)] outline-none focus:border-purple-500"
+            />
+          </div>
+          <div className="flex-1 overflow-y-auto px-4 py-3 text-xs">
+            {filteredFieldNotes.length === 0 && (
+              <p className="text-[var(--text-soft)]">
+                {allFieldNotes.length === 0
+                  ? 'No column-level /* @doc */ annotations in this schema yet.'
+                  : 'No matches.'}
+              </p>
+            )}
+            <div className="space-y-2">
+              {filteredFieldNotes.map((n) => (
+                <div
+                  key={`${n.table}.${n.column}`}
+                  className="rounded border border-[var(--border-soft)] bg-[var(--surface-2)] px-3 py-2"
+                >
+                  <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wide text-[var(--text-soft)]">
+                    <button
+                      type="button"
+                      onClick={() => focusTable(n.table, n.column)}
+                      title="Center this column on the canvas"
+                      className="normal-case text-purple-300 hover:text-purple-200"
+                    >
+                      {n.table}.{n.column}{' '}
+                      <span className="text-[var(--text-soft)]">{n.type}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        openDocDrawer({
+                          kind: 'column',
+                          table: n.table,
+                          column: n.column,
+                          body: n.body,
+                        })
+                      }
+                      title="Open in drawer"
+                      className="rounded px-1.5 py-0.5 normal-case hover:bg-[var(--surface)] hover:text-[var(--text)]"
+                    >
+                      ⤢
+                    </button>
+                  </div>
+                  {renderMarkdown(n.body)}
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 export function CollapseSidebarButton({
   className = '',
 }: {

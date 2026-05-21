@@ -23,6 +23,7 @@ export {
   TableList,
   SqlImport,
   GroupsPanel,
+  NotesPanel,
   CollapseSidebarButton,
 } from './components/sidebar-parts'
 export { Toolbar as SchemaToolbar } from './components/Toolbar'
@@ -30,6 +31,10 @@ export type { SchemaToolbarProps } from './components/Toolbar'
 export { TableNode } from './components/TableNode'
 export type { TableNodeData } from './components/TableNode'
 export { SelfLoopEdge } from './components/SelfLoopEdge'
+// Slide-in drawer that shows a single /​* @doc *​/ markdown body.
+// Mount once at your root; opens/closes via store.openDocDrawer /
+// store.closeDocDrawer (already wired into the 📖/📝 badge clicks).
+export { DocDrawer } from './components/DocDrawer'
 // canvas-render primitives — for users composing their own <ReactFlow>
 // instead of using the bundled <SchemaCanvas>.
 export {

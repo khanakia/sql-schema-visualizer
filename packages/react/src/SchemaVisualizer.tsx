@@ -1,6 +1,7 @@
 import { useStore } from './store'
 import { Canvas } from './components/Canvas'
 import { Sidebar } from './components/Sidebar'
+import { DocDrawer } from './components/DocDrawer'
 import { SchemaProvider, type SchemaProviderProps } from './SchemaProvider'
 
 export interface SchemaVisualizerProps
@@ -36,6 +37,9 @@ export function SchemaVisualizer({
           <Canvas showToolbar={showToolbar} />
         </div>
       </div>
+      {/* DocDrawer renders via portal — mounting it once at the
+          provider root is enough; it watches store.docDrawer. */}
+      <DocDrawer />
     </SchemaProvider>
   )
 }

@@ -109,7 +109,8 @@ Three levels — use whichever fits:
 | `<SchemaVisualizer>` | one-line full app (provider + sidebar + canvas + toolbar) |
 | `<SchemaProvider>` | context wrapper — drive `sql` / `theme` / `storage` from props |
 | `<SchemaCanvas>` | the React Flow diagram — fully prop-configurable (see below) |
-| `<SchemaSidebar>` | bundled panel with three tabs (Tables / Groups / SQL); props `width` / `className` / `showHeader` |
+| `<SchemaSidebar>` | bundled panel with four tabs (Tables / Groups / 📖 Notes / SQL); resizable right edge (drag); props `width` (locks the width when set) / `className` / `showHeader` / `resizable` |
+| `<DocDrawer>` | slide-in right-side drawer that renders a single `/* @doc */` markdown body. Auto-mounted inside `<SchemaCanvas>`; mount it yourself only if you compose a custom canvas without `<SchemaCanvas>`. Triggered by clicks on the 📖 / 📝 badges (store.openDocDrawer). |
 | `<SchemaToolbar>` | bundled floating toolbar (`onFit`, `onExport`, `className`) |
 | `<TableNode>` / `<SelfLoopEdge>` | renderers for custom React Flow setups |
 | `<ErdMarkers>` + `ERD_MARKER_ONE` / `ERD_MARKER_MANY_MANDATORY` / `ERD_MARKER_MANY_OPTIONAL` | SVG `<defs>` for crow's-foot line ends + id constants; drop next to your custom `<ReactFlow>` |
@@ -117,8 +118,9 @@ Three levels — use whichever fits:
 | `<HelpModal>` / `<HelpButton>` + `defaultHelpEntries`, `matchHelpEntry`, type `HelpEntry` | searchable "every feature" modal; pass `entries` to extend or fully replace |
 | `<ExportBackupButton>` / `<ImportBackupButton>` + `buildBackup` / `validateBackup` / `applyBackup` / `downloadBackup`, types `BackupPayload` / `BackupApplyActions` | full-state JSON snapshot (SQL + groups + preferences) |
 | **Toolbar primitives** | `ToolbarButton` `ToolbarDivider` `SamplesMenu` `BackButton` `ActiveGroupPill` `LayoutDirectionButton` `CollapseAllButton` `CommentModeButton` `ResetLayoutButton` `ThemeButton` `ShareButton` `FitButton` `ExportButton` `HelpButton` |
-| **Sidebar primitives** | `SchemaSearch` `SchemaWarnings` `TableList` `SqlImport` `GroupsPanel` `CollapseSidebarButton` |
-| `useSchemaStore` | full zustand store (sql, schema, search, focus, history, collapsed, theme, groups, activeGroup, …) |
+| **Sidebar primitives** | `SchemaSearch` `SchemaWarnings` `TableList` `SqlImport` `GroupsPanel` `NotesPanel` `CollapseSidebarButton` |
+| `renderMarkdown(src)` | tiny safe markdown → React renderer (no deps). Used by the 📖 / 📝 popovers, the Notes tab, and the DocDrawer. |
+| `useSchemaStore` | full zustand store (sql, schema, search, focus, history, collapsed, theme, groups, activeGroup, sidebarWidth, sidebarTab, docDrawer, …) |
 | `useSchemaActions` | stable-ref object of just the action funcs (mutate-only callers — no re-render on unrelated state changes) |
 | `computeVisibleSet(schema, groups, activeGroup)` / `edgeIsVisible(set, src, tgt)` | pure helpers behind group-filtered canvases |
 | `buildShareUrl(sql, {groups?, activeGroup?})`, `SHARE_URL_SOFT_LIMIT` | compressed share-link helpers |
@@ -206,6 +208,27 @@ setActiveGroup('billing')   // canvas now shows just those two
 // Compute the visible set yourself (e.g. inside a custom canvas)
 const visible = computeVisibleSet(schema, groups, activeGroup)  // Set<string> | null
 ```
+
+## Descriptions & notes (`/* @doc */`)
+
+Multi-paragraph markdown descriptions for tables and columns live directly in SQL via `/* @doc … */` blocks — parsed into `Schema.Table.description` / `Schema.Column.description`. The UI exposes them three ways:
+
+- **📖 / 📝 badges** on the table header / column row. Hover → portal-rendered preview popover; click → opens the slide-in `<DocDrawer />` for full-screen reading.
+- **Notes sidebar tab** with two modes:
+  - *By table* — dropdown picks a table, shows table + per-column descriptions; auto-tracks the focused table.
+  - *📝 All field notes (N)* — every column-level `@doc` across the schema in one filterable list. Each entry has a click-to-focus link (centers the column on the canvas) and a ⤢ open-in-drawer button.
+- **Sidebar search** (`<SchemaSearch />`) matches `@doc` body text as well as column names + short `--` comments, so typing a phrase from any description surfaces the right column.
+
+Store actions:
+```ts
+useSchemaStore.getState().openDocDrawer({ kind: 'table', table: 'users', body: '# users\n…' })
+useSchemaStore.getState().openDocDrawer({ kind: 'column', table: 'users', column: 'email', body: '…' })
+useSchemaStore.getState().closeDocDrawer()
+useSchemaStore.getState().setSidebarTab('notes')
+useSchemaStore.getState().setSidebarWidth(420)      // 240–700, persisted
+```
+
+`<DocDrawer />` is mounted automatically inside `<SchemaCanvas />`. If you compose your own canvas without `<SchemaCanvas />`, mount `<DocDrawer />` once at your root.
 
 ## FK navigation
 

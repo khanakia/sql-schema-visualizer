@@ -15,6 +15,10 @@ const HISTORY_MAX = 50
 const K_SQL = 'dbviz.sql'
 const K_COMMENTS = 'dbviz.comments'
 const K_THEME = 'dbviz.theme'
+const K_SIDEBAR_WIDTH = 'dbviz.sidebarWidth.v1'
+const SIDEBAR_MIN = 240
+const SIDEBAR_MAX = 700
+const SIDEBAR_DEFAULT = 340
 // Versioned key so future shape changes don't silently break older saves.
 // See .ai/plans/table-groups/PLAN.md "Data model".
 const K_GROUPS = 'dbviz.groups.v1'
@@ -116,6 +120,26 @@ interface State {
   toggleComments: () => void
   sidebarOpen: boolean
   toggleSidebar: () => void
+  /** Persisted sidebar width in px. User-resizable via drag handle. */
+  sidebarWidth: number
+  setSidebarWidth: (w: number) => void
+  /** Active sidebar tab — session only. Lifted into the store so any
+   *  component (e.g. the table 📖 badge inside a React Flow node) can
+   *  switch tabs without prop-drilling. */
+  sidebarTab: 'tables' | 'groups' | 'notes' | 'sql'
+  setSidebarTab: (t: 'tables' | 'groups' | 'notes' | 'sql') => void
+  /** Right-side drawer showing a single table-or-column /​* @doc *​/.
+   *  Opens on click of the 📖 / 📝 badge; null = closed. Session-only. */
+  docDrawer:
+    | { kind: 'table'; table: string; body: string }
+    | { kind: 'column'; table: string; column: string; body: string }
+    | null
+  openDocDrawer: (
+    payload:
+      | { kind: 'table'; table: string; body: string }
+      | { kind: 'column'; table: string; column: string; body: string },
+  ) => void
+  closeDocDrawer: () => void
   collapsed: Record<string, true>
   toggleCollapse: (table: string) => void
   collapseAll: (names: string[]) => void
@@ -218,6 +242,24 @@ export const useStore = create<State>((set) => ({
     }),
   sidebarOpen: true,
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  sidebarWidth: (() => {
+    const raw = storage.getItem(K_SIDEBAR_WIDTH)
+    const n = raw ? Number(raw) : NaN
+    return Number.isFinite(n) && n >= SIDEBAR_MIN && n <= SIDEBAR_MAX
+      ? n
+      : SIDEBAR_DEFAULT
+  })(),
+  setSidebarWidth: (w) =>
+    set(() => {
+      const clamped = Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, Math.round(w)))
+      storage.setItem(K_SIDEBAR_WIDTH, String(clamped))
+      return { sidebarWidth: clamped }
+    }),
+  sidebarTab: 'tables',
+  setSidebarTab: (t) => set({ sidebarTab: t }),
+  docDrawer: null,
+  openDocDrawer: (payload) => set({ docDrawer: payload }),
+  closeDocDrawer: () => set({ docDrawer: null }),
   collapsed: {},
   toggleCollapse: (table) =>
     set((s) => {

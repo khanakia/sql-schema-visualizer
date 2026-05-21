@@ -34,6 +34,7 @@ import {
   ERD_MARKER_MANY_OPTIONAL,
 } from './ErdMarkers'
 import { GroupsContextMenu } from './GroupsContextMenu'
+import { DocDrawer } from './DocDrawer'
 import { computeVisibleSet, edgeIsVisible } from '../groups'
 
 const nodeTypes = { table: TableNode }
@@ -513,6 +514,11 @@ function Flow(props: SchemaCanvasProps) {
           onClose={() => setCtxMenu(null)}
         />
       )}
+      {/* Always-on /​* @doc *​/ slide-in drawer (portal-rendered;
+          no-op when store.docDrawer is null). Mounted here so any
+          consumer of <SchemaCanvas /> gets it for free, without
+          having to wire <DocDrawer /> separately at the app root. */}
+      <DocDrawer />
       {showToolbar && (
         <Toolbar
           onFit={() => fitView({ padding: fitViewPadding, duration: 400 })}

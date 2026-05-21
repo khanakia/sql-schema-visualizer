@@ -93,6 +93,28 @@ interface Column {
 interface ForeignKey { fromTable: string; fromColumn: string; toTable: string; toColumn: string }
 ```
 
+#### `/* @doc */` rich descriptions
+
+Multi-paragraph markdown bodies, attributed by paren depth: a `/* @doc … */` block OUTSIDE the parens (above `CREATE TABLE`) attaches to the table; INSIDE the parens (above a column line) attaches to that column. Same-line `/* @doc … */` works too. Multiple blocks for the same target concatenate with a blank line between. Bodies are dedented (longest common leading whitespace stripped) so authors can indent inside parens naturally.
+
+```sql
+/* @doc
+# users
+
+The **authoritative** account table. Soft-deletes go to `users_deleted`.
+*/
+CREATE TABLE users (
+  id    SERIAL PRIMARY KEY,
+  /* @doc
+  ## email
+  Lower-cased at app layer. The canonical login key.
+  */
+  email VARCHAR(255) NOT NULL UNIQUE
+);
+```
+
+Bodies land on `Table.description` / `Column.description`. Plain block comments without the `@doc` marker remain regular comments (no description). The parser also handles same-line single `/* @doc body */`.
+
 #### `-- @group:` annotations
 
 Place a comment immediately above (or on the same line as) a `CREATE TABLE` to declare group membership. A table can belong to multiple groups — comma-separate the names. Multiple `-- @group:` lines stacked above one CREATE accumulate.
@@ -139,7 +161,7 @@ Ready-made commented example schemas: e-commerce, blog, SaaS, relationship-notat
 | MySQL | backticks, `AUTO_INCREMENT`, `ENGINE=`, `UNSIGNED` |
 | SQLite | `AUTOINCREMENT`, minimal types |
 | ANSI / generic | best-effort; unknown clauses skipped, not fatal |
-| Annotations | `-- @group: name` (or `name1, name2`) above `CREATE TABLE` populates `Schema.groupAnnotations` |
+| Annotations | `-- @group: name` (one-liner tags) and `/* @doc … */` (multi-line markdown bodies) — see the API section. Both attach to tables or columns by position. |
 
 ## Limitations
 

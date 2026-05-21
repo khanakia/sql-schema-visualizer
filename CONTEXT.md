@@ -83,7 +83,7 @@ Consequence: a wrapped comment block whose continuation lands on the line *after
 
 ## State (`store.ts`)
 
-Single Zustand store. Persisted to `localStorage`: `dbviz.sql` (last SQL), `dbviz.comments` (`off` | `inline` | `hover`, with legacy `0`/`1` migration), `dbviz.theme`, `dbviz.groups.v1` (versioned: `{groups, activeGroup}`). `search`, `focus`, `direction`, `history` (FK back-stack) are session-only.
+Single Zustand store. Persisted to `localStorage`: `dbviz.sql` (last SQL), `dbviz.comments` (`off` | `inline` | `hover`, with legacy `0`/`1` migration), `dbviz.theme`, `dbviz.groups.v1` (versioned: `{groups, activeGroup}`), `dbviz.sidebarWidth.v1` (drag-resized sidebar width, 240–700). `search`, `focus`, `direction`, `history` (FK back-stack), `sidebarTab` (active sidebar tab), `docDrawer` (currently-open `/* @doc */` reader) are session-only.
 
 ## FK navigation (`Canvas.tsx` + `store.ts`)
 
@@ -105,6 +105,17 @@ Single Zustand store. Persisted to `localStorage`: `dbviz.sql` (last SQL), `dbvi
 ## Backup (`packages/react/src/backup.ts`)
 
 JSON snapshot of `{sql, groups, activeGroup, commentMode, theme}` with a `BACKUP_VERSION` field. `validateBackup` tolerates garbage and rejects unknown majors with a clear error. `applyBackup` drives store actions in safe order (SQL → wipe-then-rebuild groups → activeGroup → preference toggles). `<ExportBackupButton>` / `<ImportBackupButton>` are thin React wrappers; the helpers are usable headless.
+
+## Descriptions / `/* @doc */` (parser + UI)
+
+- Parser pass `extractDocAnnotations(input, byName)` runs after `associateComments`. It walks the original (pre-strip) input, tracks paren depth, and attributes `/* @doc … */` block bodies: outside parens → `Table.description`; inside parens → `Column.description`. Multiple blocks for the same target concatenate. Bodies are dedented. Single-line `/* @doc body */` works too. Plain block comments without the marker are ignored.
+- `associateComments` skips lines inside `/* @doc … */` blocks so markdown like `# Heading` isn't mis-parsed as a MySQL `#` line-comment.
+- Renderer: `packages/react/src/markdown.tsx` — ~150-LOC safe markdown → React tree (no `dangerouslySetInnerHTML`, no deps). Supports headings (`#`–`######`), bold/italic, inline + fenced code, links (sanitized to http(s)/mailto/relative/fragment), bullet + numbered lists, paragraphs, line breaks.
+- UI surfaces:
+  - **DocBadge** in `TableNode.tsx`: 📖 (table) and 📝 (column) badges. Hover → portal-to-body popover (escapes React Flow node clipping); click → `store.openDocDrawer(...)`.
+  - **DocDrawer** (`components/DocDrawer.tsx`): portal-to-body slide-in drawer (480px, right side). Esc + click-outside close (click-outside listener is armed via `setTimeout(0)` to avoid catching the opening click). Auto-mounted inside `<SchemaCanvas />`.
+  - **NotesPanel** (4th sidebar tab): two modes — *By table* (dropdown + auto-track focused table; cards with ⤢ open-in-drawer buttons) and *📝 All field notes* (every column-level `@doc` across the schema, filter input).
+  - **Sidebar search** matches `@doc` body text in addition to column names + short comments.
 
 ## Help (`packages/react/src/help.ts` + `Help.tsx`)
 

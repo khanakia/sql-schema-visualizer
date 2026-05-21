@@ -1,7 +1,7 @@
 // The bundled sidebar = the primitives in `sidebar-parts.tsx` arranged in
 // a panel with a tables/SQL tab switch. Want a different layout/subset?
 // Compose SchemaSearch / TableList / SqlImport / … yourself instead.
-import { useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useStore } from '../store'
 import {
   SchemaSearch,
@@ -9,21 +9,61 @@ import {
   SqlImport,
   CollapseSidebarButton,
   GroupsPanel,
+  NotesPanel,
 } from './sidebar-parts'
 
 export interface SchemaSidebarProps {
-  /** override the panel width (default 340px) */
+  /** Override the panel width. If omitted the user-resizable
+   *  store width (`sidebarWidth`) is used; passing this prop pins
+   *  the sidebar to a fixed width and disables the drag handle. */
   width?: number | string
   className?: string
   /** show the title + collapse header (default true) */
   showHeader?: boolean
+  /** Show the right-edge drag handle (default true when `width` is
+   *  store-driven; ignored when `width` is provided explicitly). */
+  resizable?: boolean
 }
 
 export function Sidebar({
-  width = 340,
+  width,
   className = '',
   showHeader = true,
+  resizable = true,
 }: SchemaSidebarProps = {}) {
+  const storeWidth = useStore((s) => s.sidebarWidth)
+  const setSidebarWidth = useStore((s) => s.setSidebarWidth)
+  // Effective width: explicit prop wins (locks it), else use store.
+  const effectiveWidth = width ?? storeWidth
+  const isResizable = resizable && width === undefined
+
+  // Drag-to-resize: pointer-events on a 4px handle on the right edge.
+  // We capture move + up on `window` so the drag survives the mouse
+  // leaving the handle's tiny area while resizing.
+  const dragRef = useRef<{ startX: number; startW: number } | null>(null)
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (!isResizable) return
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    dragRef.current = { startX: e.clientX, startW: storeWidth }
+  }
+  useEffect(() => {
+    if (!isResizable) return
+    const move = (e: PointerEvent) => {
+      if (!dragRef.current) return
+      const dx = e.clientX - dragRef.current.startX
+      setSidebarWidth(dragRef.current.startW + dx)
+    }
+    const up = () => {
+      dragRef.current = null
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    return () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+    }
+  }, [isResizable, setSidebarWidth])
+
   const tableCount = useStore((s) => s.schema.tables.length)
   // Tab badge counts user groups + derived `-- @group:` SQL annotations
   // (deduped by name; user group shadows derived on collision).
@@ -34,12 +74,24 @@ export function Sidebar({
     return userNames.size
   })
   const activeGroup = useStore((s) => s.activeGroup)
-  const [tab, setTab] = useState<'tables' | 'groups' | 'sql'>('tables')
+  // Count tables that have any `/* @doc */` annotation so the Notes
+  // tab can show a badge ("Notes (3)") when there's something to read.
+  const notesCount = useStore((s) =>
+    s.schema.tables.reduce(
+      (n, t) =>
+        n + (t.description || t.columns.some((c) => c.description) ? 1 : 0),
+      0,
+    ),
+  )
+  // Tab is store-driven so external triggers (e.g. clicking the 📖
+  // badge on a table) can switch tabs without prop-drilling.
+  const tab = useStore((s) => s.sidebarTab)
+  const setTab = useStore((s) => s.setSidebarTab)
 
   return (
     <aside
-      style={{ width }}
-      className={`flex h-full shrink-0 flex-col border-r border-[var(--border-soft)] bg-[var(--surface)] ${className}`}
+      style={{ width: effectiveWidth }}
+      className={`relative flex h-full shrink-0 flex-col border-r border-[var(--border-soft)] bg-[var(--surface)] ${className}`}
     >
       {showHeader && (
         <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border-soft)]">
@@ -59,13 +111,15 @@ export function Sidebar({
           is currently filtering the canvas, so it's discoverable even
           when the user is on a different tab. */}
       <div className="flex border-b border-[var(--border-soft)] text-xs">
-        {(['tables', 'groups', 'sql'] as const).map((t) => {
+        {(['tables', 'groups', 'notes', 'sql'] as const).map((t) => {
           const label =
             t === 'tables'
               ? `Tables (${tableCount})`
               : t === 'groups'
                 ? `Groups (${groupCount})`
-                : '⊕ Paste / Import SQL'
+                : t === 'notes'
+                  ? `📖 Notes${notesCount ? ` (${notesCount})` : ''}`
+                  : '⊕ SQL'
           return (
             <button
               key={t}
@@ -95,7 +149,19 @@ export function Sidebar({
 
       {tab === 'tables' && <TableList className="flex-1" />}
       {tab === 'groups' && <GroupsPanel className="flex-1 overflow-y-auto" />}
+      {tab === 'notes' && <NotesPanel className="flex-1" />}
       {tab === 'sql' && <SqlImport />}
+
+      {isResizable && (
+        // Right-edge drag handle — 4px hit zone, becomes purple on
+        // hover so it's discoverable. Lives outside the scrolling tab
+        // content so it stays grabbable at any scroll position.
+        <div
+          onPointerDown={onPointerDown}
+          title="Drag to resize"
+          className="absolute inset-y-0 right-0 z-10 w-1 cursor-col-resize bg-transparent transition-colors hover:bg-purple-500/40"
+        />
+      )}
     </aside>
   )
 }

@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
 import type { Column } from '@khanakia/sql-schema-core'
 import { useStore } from '../store'
@@ -30,35 +31,86 @@ function Popover({ text }: { text: string }) {
 }
 
 /** Inline 📖 / 📝 badge that opens a wider markdown popover on hover.
- *  Self-contained — uses React state instead of Tailwind named-group
- *  classes, which can silently fail to render (Tailwind content-scan
- *  may not pick up `group/doc` / `group-hover/doc:block` strings). */
+ *
+ *  The popover is rendered via a portal to `document.body` so it
+ *  escapes any clipping from React Flow's transformed/scaled node
+ *  containers AND any stacking-context oddities — neither of which we
+ *  control from inside a custom node. Position is computed from the
+ *  badge's bounding rect each hover. */
 function DocBadge({
   emoji,
   body,
   title,
   className = '',
+  onActivate,
 }: {
   emoji: ReactNode
   body: string
   title: string
   className?: string
+  /** Called when the badge is clicked — typically opens the Notes
+   *  sidebar tab and focuses the relevant table. */
+  onActivate?: () => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
+  const anchorRef = useRef<HTMLSpanElement>(null)
+  const open = () => {
+    const el = anchorRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    // Anchor the popover just below + right of the badge so it never
+    // overlaps the badge itself (which would re-fire mouseleave and
+    // flicker). Clamp to viewport so very-right tables still show it.
+    const w = 320
+    const x = Math.min(r.right + 8, window.innerWidth - w - 8)
+    const y = Math.min(r.bottom + 4, window.innerHeight - 40)
+    setPos({ x, y })
+  }
+  const close = () => setPos(null)
   return (
-    <span
-      className={`relative inline-flex cursor-help text-[11px] text-purple-300 ${className}`}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      title={title}
-    >
-      {emoji}
-      {open && (
-        <div className="absolute left-full top-0 z-50 ml-2 max-h-72 w-80 overflow-y-auto rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-[var(--text)] shadow-xl">
-          {renderMarkdown(body)}
-        </div>
-      )}
-    </span>
+    <>
+      <span
+        ref={anchorRef}
+        className={`relative inline-flex ${onActivate ? 'cursor-pointer' : 'cursor-help'} text-[11px] text-purple-300 hover:text-purple-200 ${className}`}
+        onMouseEnter={open}
+        onMouseLeave={close}
+        onClick={(e) => {
+          e.stopPropagation()
+          onActivate?.()
+          // Close the hover popover after activating so the sidebar
+          // becomes the primary reading surface.
+          close()
+        }}
+        // React Flow steals mousedown for node drags — stopPropagation
+        // here keeps clicks crisp on the badge.
+        onMouseDown={(e) => e.stopPropagation()}
+        title={title}
+      >
+        {emoji}
+      </span>
+      {pos &&
+        createPortal(
+          <div
+            // Portal-rendered so React Flow can't clip it. Match
+            // hover lifecycle by also closing when the popover itself
+            // is left (so users can mouse into it to read / click).
+            onMouseEnter={() => setPos(pos)}
+            onMouseLeave={close}
+            style={{
+              position: 'fixed',
+              left: pos.x,
+              top: pos.y,
+              zIndex: 9999,
+              width: 320,
+              maxHeight: '60vh',
+            }}
+            className="overflow-y-auto rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-[var(--text)] shadow-2xl"
+          >
+            {renderMarkdown(body)}
+          </div>,
+          document.body,
+        )}
+    </>
   )
 }
 
@@ -118,7 +170,14 @@ export function TableNode({ data, selected }: NodeProps) {
             <DocBadge
               emoji="📖"
               body={d.tableDescription}
-              title="Hover for the table description"
+              title="Hover for preview · click to open"
+              onActivate={() =>
+                useStore.getState().openDocDrawer({
+                  kind: 'table',
+                  table: d.label,
+                  body: d.tableDescription!,
+                })
+              }
             />
           )}
         </span>
@@ -231,8 +290,16 @@ export function TableNode({ data, selected }: NodeProps) {
                     <DocBadge
                       emoji="📝"
                       body={c.description}
-                      title="Hover for the column description"
+                      title="Hover for preview · click to open"
                       className="ml-1 text-[10px]"
+                      onActivate={() =>
+                        useStore.getState().openDocDrawer({
+                          kind: 'column',
+                          table: d.label,
+                          column: c.name,
+                          body: c.description!,
+                        })
+                      }
                     />
                   )}
                   {/* UNIQUE glyph — skipped on PK rows since PKs are
