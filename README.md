@@ -48,7 +48,7 @@ Most SQL schema visualization tools are either paid, require a live database con
 - **Multi-select & right-click menu** — Shift/⌘-click to multi-select; right-click any selected table for a `Groups ▸` submenu (toggle membership, "+ New group from N tables…").
 - **Searchable help modal** — `?` opens an inline help modal that indexes every feature (try "multi", "fk", "filter", "backup", "annotation").
 - **Backup / restore** — `⤓ Export backup` downloads a JSON snapshot of SQL + groups + preferences; `⤴ Import backup` restores it after a confirm. Versioned format; tolerant decoder.
-- **Import** — paste DDL or upload a `.sql` file. Built-in sample schemas: e-commerce, blog, SaaS, relationship-notation demo, mini-ERP (groups demo), social network, project management (MySQL), library catalogue (SQLite), banking ledger.
+- **Import** — paste DDL or upload `.sql` file(s). Built-in sample schemas: e-commerce, blog, SaaS, relationship-notation demo, mini-ERP (groups demo), social network, project management (MySQL), library catalogue (SQLite), banking ledger.
 - **Export** — one-click PNG of the full diagram.
 - **Share** — whole schema compressed into a URL fragment (deflate-raw, ~2.9×); groups + active group travel alongside in an additive `&g=` fragment. 100% client-side, no server.
 - **Dark / light UI**, keyboard-friendly, **pluggable storage** (localStorage by default).
